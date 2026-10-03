@@ -355,7 +355,7 @@ export default function App() {
     )
   }
 
-  // ✨ หน้า Dashboard (รวมทุกอย่างไว้ที่นี่เพื่อปริ้นออกรวดเดียว)
+  // ✨ หน้า Dashboard หลัก
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8 relative print:bg-white print:bg-none print:p-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
@@ -363,7 +363,6 @@ export default function App() {
         {/* --- 📄 หน้าที่ 1: แดชบอร์ดสรุปสถิติ --- */}
         <div className="max-w-6xl mx-auto space-y-6 print:space-y-6">
           
-          {/* Header เฉพาะตอน Print */}
           <div className="hidden print:flex justify-between items-center border-b-2 border-orange-500 pb-6 mb-6">
             <div>
               <h1 className="text-4xl font-black text-gray-900">รายงานข้อมูลและแผนงาน ปี 2027</h1>
@@ -371,7 +370,6 @@ export default function App() {
               {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium mt-1">ผู้รับผิดชอบ: {userName}</p>}
             </div>
             <div className="flex items-center gap-4 bg-orange-50 p-4 rounded-3xl border border-orange-200">
-              {/* ✨ ขยาย QR Code ให้ใหญ่ชัดเจนตอนปริ้น (size=120) */}
               <div className="bg-white p-2 rounded-2xl shadow-sm border border-orange-100">
                 <QRCodeSVG value={liveUrl} size={120} />
               </div>
@@ -382,7 +380,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Header หน้าจอปกติ */}
           <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl shadow-sm border border-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
             <div>
               {planningLevel === 'คริสตจักร' ? (
@@ -444,7 +441,7 @@ export default function App() {
                   <h2 className="text-2xl font-black text-gray-800">สถิติการมาร่วม</h2>
                 </div>
                 {planningLevel !== 'คริสตจักร' && (
-                  <button onClick={() => setIsAttModalOpen(true)} className="print:hidden bg-gradient-to-r from-orange-400 to-orange-500 text-white px-4 py-2 rounded-full font-bold text-sm shadow-sm hover:shadow-md transition-all">+ กรอกสถิติสัปดาห์นี้</button>
+                  <button onClick={() => setIsAttModalOpen(true)} className="print:hidden bg-gradient-to-r from-orange-400 to-orange-500 text-white px-4 py-2 rounded-full font-bold text-sm shadow-sm hover:shadow-md transition-all flex items-center gap-1">+ กรอกสถิติสัปดาห์นี้</button>
                 )}
               </div>
               <div className="text-right mt-4 md:mt-0 print:mt-0">
@@ -459,13 +456,21 @@ export default function App() {
               </div>
             </div>
             
-            {/* ✨ ปรับความสูงกราฟ และเพิ่ม margin ล่างให้ตัวอักษรไม่ตกขอบ (bottom: 80) */}
-            <div className="h-[450px] w-full mt-4 print:h-[400px]">
+            {/* ✨ แก้ไขกราฟ: เพิ่ม height={80} ให้แกน XAxis และลด margin bottom ของตัวกราฟลงมา */}
+            <div className="h-[400px] w-full mt-4 print:h-[400px]">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={attendanceData} margin={{ top: 30, right: 20, left: -20, bottom: 80 }}>
+                  <BarChart data={attendanceData} margin={{ top: 30, right: 20, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 12, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{fill: '#ea580c', fontSize: 12, fontWeight: 'bold'}} 
+                      angle={-45} 
+                      textAnchor="end" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      height={80} // 👈 จุดสำคัญที่แก้ปัญหาขอบตัดขาดครับ!
+                    />
                     <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
                     <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={40}>
@@ -534,7 +539,7 @@ export default function App() {
           )}
         </div>
 
-        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ (กลับมาอยู่ในหน้าเดียวแล้ว!) --- */}
+        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ --- */}
         <div className="max-w-5xl mx-auto print:break-before-page mt-12 print:mt-8">
           {planningLevel !== 'คริสตจักร' && (
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
@@ -542,8 +547,6 @@ export default function App() {
               <form onSubmit={handleSavePlan} className="text-gray-900">
                 
                 <div className="print:break-inside-avoid pb-4">
-                  
-                  {/* หัวฟอร์ม 6 มิติ (โชว์บนจอด้วย) */}
                   <div className="mb-12 pb-8 border-b-2 border-orange-200">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-8 tracking-tight">แบบฟอร์มวางแผนรับใช้ 6 มิติ (ปี 2027)</h1>
                     <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><span className="bg-orange-300 w-2 h-6 rounded-full inline-block"></span>ข้อมูล{planningLevel}และผู้รับผิดชอบ</h3>
