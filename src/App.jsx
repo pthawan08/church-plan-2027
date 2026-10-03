@@ -78,7 +78,6 @@ export default function App() {
     { month: 'กันยายน 2026', days: [{ date: '2026-09-06', label: 'อาทิตย์ 6 ก.ย.' }, { date: '2026-09-13', label: 'อาทิตย์ 13 ก.ย.' }, { date: '2026-09-20', label: 'อาทิตย์ 20 ก.ย.' }, { date: '2026-09-27', label: 'อาทิตย์ 27 ก.ย.' }] }
   ];
 
-  // ✨ ระบบ Smart Memory ดึงค่าเป้าหมายล่าสุดที่เคยพิมพ์มาใช้ให้อัตโนมัติ
   useEffect(() => {
     const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
     if (areaKey) {
@@ -383,7 +382,6 @@ export default function App() {
     )
   }
 
-  // ✨ หน้า Dashboard หลัก
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8 relative print:bg-white print:bg-none print:p-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
@@ -479,7 +477,7 @@ export default function App() {
                     setAreaTarget(e.target.value); 
                     const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea; 
                     localStorage.setItem('target_' + areaKey, e.target.value); 
-                    localStorage.setItem('last_used_target', e.target.value); // ✨ เซฟค่าล่าสุดไว้จำอัตโนมัติ
+                    localStorage.setItem('last_used_target', e.target.value);
                   }} />
                 </div>
                 <div className="flex items-center justify-end gap-3">
@@ -572,7 +570,7 @@ export default function App() {
           )}
         </div>
 
-        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ (ปลดล็อคการห้ามตัดหน้ากระดาษแล้ว!) --- */}
+        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ (ขยายอักษรให้ผู้ใหญ่ & ปลดล็อคเว้นหน้า) --- */}
         <div className="max-w-5xl mx-auto mt-12 print:mt-8">
           {planningLevel !== 'คริสตจักร' && (
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
@@ -589,25 +587,26 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* ✨ อัปเดตส่วน KPI ให้ตัวอักษรใหญ่ขึ้น ผู้ใหญ่อ่านง่าย */}
                   <div className="bg-white border-2 border-[#ea580c] rounded-2xl p-4 md:p-6 mb-8 relative shadow-sm print:border-orange-500">
-                    <div className="absolute top-0 right-0 bg-[#1e293b] text-white font-bold py-1 px-4 rounded-bl-xl text-xs tracking-widest print:bg-white print:text-black print:border-b print:border-l print:border-orange-500">KPI 2027</div>
-                    <h2 className="text-lg font-bold text-[#ea580c] mb-4 flex items-center gap-2 mt-1"><span className="bg-[#ffedd5] p-1.5 rounded-md text-base">🎯</span> สรุปภาพรวมเป้าหมายคริสตจักร ปี 2027</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center mb-3">
-                      <div className="bg-[#fff7ed] py-2 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-600 font-bold text-[12px] mb-1">เป้าหมายสมาชิก</p><p className="text-xl font-black text-[#ea580c]">1,000 <span className="text-xs font-bold">คน</span></p></div>
-                      <div className="bg-[#fff7ed] py-2 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-600 font-bold text-[12px] mb-1">ผู้สนใจ</p><p className="text-xl font-black text-[#ea580c]">1,000 <span className="text-xs font-bold">คน</span></p></div>
-                      <div className="bg-[#fff7ed] py-2 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-600 font-bold text-[12px] mb-1">ผู้รับเชื่อ</p><p className="text-xl font-black text-[#ea580c]">2,000 <span className="text-xs font-bold">คน</span></p></div>
-                      <div className="bg-[#fff7ed] py-2 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-600 font-bold text-[12px] mb-1">ประกาศ</p><p className="text-xl font-black text-[#ea580c]">10,000 <span className="text-xs font-bold">คน</span></p></div>
-                      <div className="bg-[#fff7ed] py-2 px-2 rounded-xl border border-[#ffedd5] col-span-2 md:col-span-1"><p className="text-slate-600 font-bold text-[12px] mb-1">ตำบลเป้าหมาย</p><p className="text-xl font-black text-[#ea580c]">10 <span className="text-xs font-bold">แห่ง</span></p></div>
+                    <div className="absolute top-0 right-0 bg-[#1e293b] text-white font-bold py-1 px-4 rounded-bl-xl text-xs md:text-sm tracking-widest print:bg-white print:text-black print:border-b print:border-l print:border-orange-500">KPI 2027</div>
+                    <h2 className="text-xl md:text-2xl font-black text-[#ea580c] mb-6 flex items-center gap-2 mt-1"><span className="bg-[#ffedd5] p-2 rounded-lg text-xl">🎯</span> สรุปภาพรวมเป้าหมายคริสตจักร ปี 2027</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center mb-4">
+                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-700 font-bold text-sm md:text-base mb-1">เป้าหมายสมาชิก</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">1,000 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
+                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-700 font-bold text-sm md:text-base mb-1">ผู้สนใจ</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">1,000 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
+                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-700 font-bold text-sm md:text-base mb-1">ผู้รับเชื่อ</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">2,000 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
+                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-700 font-bold text-sm md:text-base mb-1">ประกาศ</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">10,000 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
+                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5] col-span-2 md:col-span-1"><p className="text-slate-700 font-bold text-sm md:text-base mb-1">ตำบลเป้าหมาย</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">10 <span className="text-sm font-bold text-slate-600">แห่ง</span></p></div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
-                      <div className="bg-[#f8fafc] py-2 px-2 rounded-xl border border-gray-200"><p className="text-slate-600 font-bold text-[12px] mb-1">หัวหน้าเซลล์ใหม่</p><p className="text-lg font-black text-slate-800">150 <span className="text-xs font-bold text-slate-600">คน</span></p></div>
-                      <div className="bg-[#f8fafc] py-2 px-2 rounded-xl border border-gray-200"><p className="text-slate-600 font-bold text-[12px] mb-1">พี่เลี้ยงใหม่</p><p className="text-lg font-black text-slate-800">300 <span className="text-xs font-bold text-slate-600">คน</span></p></div>
-                      <div className="bg-[#f8fafc] py-2 px-2 rounded-xl border border-gray-200"><p className="text-slate-600 font-bold text-[12px] mb-1">เซลล์ใหม่</p><p className="text-lg font-black text-slate-800">150 <span className="text-xs font-bold text-slate-600">กลุ่ม</span></p></div>
-                      <div className="bg-[#f8fafc] py-2 px-2 rounded-xl border border-gray-200"><p className="text-slate-600 font-bold text-[12px] mb-1">พันธกิจใหม่</p><p className="text-lg font-black text-slate-800">5-10 <span className="text-xs font-bold text-slate-600">พันธกิจ</span></p></div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                      <div className="bg-[#f8fafc] py-3 px-2 rounded-xl border border-gray-200"><p className="text-slate-700 font-bold text-sm md:text-base mb-1">หัวหน้าเซลล์ใหม่</p><p className="text-xl md:text-2xl font-black text-slate-800">150 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
+                      <div className="bg-[#f8fafc] py-3 px-2 rounded-xl border border-gray-200"><p className="text-slate-700 font-bold text-sm md:text-base mb-1">พี่เลี้ยงใหม่</p><p className="text-xl md:text-2xl font-black text-slate-800">300 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
+                      <div className="bg-[#f8fafc] py-3 px-2 rounded-xl border border-gray-200"><p className="text-slate-700 font-bold text-sm md:text-base mb-1">เซลล์ใหม่</p><p className="text-xl md:text-2xl font-black text-slate-800">150 <span className="text-sm font-bold text-slate-600">กลุ่ม</span></p></div>
+                      <div className="bg-[#f8fafc] py-3 px-2 rounded-xl border border-gray-200"><p className="text-slate-700 font-bold text-sm md:text-base mb-1">พันธกิจใหม่</p><p className="text-xl md:text-2xl font-black text-slate-800">5-10 <span className="text-sm font-bold text-slate-600">พันธกิจ</span></p></div>
                     </div>
-                    <div className="mt-3 bg-[#fff7ed] border border-[#fed7aa] py-2 px-4 rounded-xl flex flex-col md:flex-row justify-center items-center gap-3">
-                      <p className="text-[#9a3412] font-black text-base italic">" 50% ของ 1,000 คน เป็นทีมผู้นำ "</p>
-                      <div className="bg-white px-3 py-1 rounded-lg shadow-sm border border-[#ffedd5]"><p className="text-[#c2410c] font-bold text-sm">80%+ เข้าร่วมโปรแกรมอธิษฐาน</p></div>
+                    <div className="mt-4 bg-[#fff7ed] border border-[#fed7aa] py-3 px-5 rounded-xl flex flex-col md:flex-row justify-center items-center gap-4">
+                      <p className="text-[#9a3412] font-black text-lg md:text-xl italic">" 50% ของ 1,000 คน เป็นทีมผู้นำ "</p>
+                      <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-[#ffedd5]"><p className="text-[#c2410c] font-bold text-base md:text-lg">80%+ เข้าร่วมโปรแกรมอธิษฐาน</p></div>
                     </div>
                   </div>
 
@@ -641,7 +640,6 @@ export default function App() {
 
                 </div>
 
-                {/* ✨ เอาคำสั่งล็อคบรรทัดให้อยู่หน้าเดียวกันออกแล้ว ข้อมูลจะไหลเรียงเติมเต็มช่องว่างอัตโนมัติ */}
                 <div className="space-y-8 pt-8 text-[1.05rem] leading-relaxed text-gray-800 print:break-before-page print:pt-6 mt-6">
                   <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs print:border print:border-black print:bg-white print:text-black">2</span> การวางแผนตาม 6 มิติการขับเคลื่อนคริสตจักร</h2>
                   
