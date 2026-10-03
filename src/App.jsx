@@ -318,8 +318,9 @@ export default function App() {
                 {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium">ผู้รับผิดชอบ: {userName}</p>}
               </div>
               <div className="flex items-center gap-4 bg-orange-50 p-3 rounded-2xl border border-orange-200">
-                <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-orange-400">
-                  <svg className="w-8 h-8 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-orange-400 overflow-hidden">
+                  {/* ✨ แก้ไขตรงนี้: เพิ่ม QR Code สำหรับหน้า Print */}
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://church-plan-2027.vercel.app/" alt="QR Code" className="w-full h-full object-cover p-1" />
                 </div>
                 <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-xs">สแกนเพื่อจัดการข้อมูล</p></div>
               </div>
@@ -336,7 +337,10 @@ export default function App() {
             </div>
             <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
               <div className="flex items-center gap-4 bg-orange-50/50 p-2.5 px-4 rounded-2xl border-2 border-dashed border-orange-300 w-full md:w-auto">
-                <div className="flex items-center justify-center"><svg className="w-8 h-8 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg></div>
+                <div className="flex items-center justify-center w-10 h-10 bg-white rounded-lg overflow-hidden border border-orange-200">
+                  {/* ✨ แก้ไขตรงนี้: เพิ่ม QR Code สำหรับหน้าจอปกติ */}
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://church-plan-2027.vercel.app/" alt="QR Code" className="w-full h-full object-cover p-0.5" />
+                </div>
                 <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-[11px]">สแกนเพื่อจัดการข้อมูลออนไลน์</p></div>
               </div>
               <div className="flex gap-3 w-full md:w-auto print:hidden">
