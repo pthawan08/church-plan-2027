@@ -387,8 +387,21 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8 relative print:bg-white print:bg-none print:p-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
         
-        {/* --- 📄 หน้าที่ 1: แดชบอร์ดสรุปสถิติ --- */}
-        <div className="max-w-6xl mx-auto space-y-6 print:space-y-6">
+        {/* ✨ ห้าม Chrome ย่อส่วนกระดาษเด็ดขาด! */}
+        <style>{`
+          @media print {
+            @page { size: A4 portrait; margin: 12mm; }
+            html, body { 
+              width: 100% !important; 
+              max-width: 100% !important; 
+              min-width: 100% !important; 
+              zoom: 100% !important;
+            }
+          }
+        `}</style>
+
+        {/* ✨ เปลี่ยน max-w-6xl เป็น print:max-w-full print:w-full เพื่อให้ยืดเต็ม A4 ไม่โดนบีบ */}
+        <div className="max-w-6xl mx-auto space-y-6 print:space-y-8 print:max-w-full print:w-full print:px-0">
           
           <div className="hidden print:flex justify-between items-center border-b-2 border-orange-500 pb-6 mb-6">
             <div>
@@ -424,7 +437,7 @@ export default function App() {
               </div>
               <div className="flex gap-3 w-full md:w-auto">
                 <button onClick={() => window.print()} className="flex-1 md:flex-none text-orange-700 bg-orange-100 hover:bg-orange-200 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-sm">
-                  🖨️ ปริ้นรายงานชุดสมบูรณ์
+                  🖨️️ ปริ้นรายงานชุดสมบูรณ์
                 </button>
                 <button onClick={() => {setCurrentView('login'); setSelectedArea(''); setUserName('');}} className="text-rose-600 bg-rose-50 hover:bg-rose-100 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center">ออกจากระบบ</button>
               </div>
@@ -524,7 +537,8 @@ export default function App() {
         </div>
 
         {/* --- 📄 หน้าที่ 2: ตารางรายชื่อสมาชิก --- */}
-        <div className="max-w-6xl mx-auto print:mt-8 print:break-before-page">
+        {/* ✨ เปลี่ยน max-w-6xl เป็น print:max-w-full print:w-full */}
+        <div className="max-w-6xl mx-auto print:mt-8 print:break-before-page print:max-w-full print:w-full print:px-0">
           {planningLevel === 'คริสตจักร' ? (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-none print:px-0">
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3 mb-6"><span className="bg-purple-100 text-purple-600 p-2.5 rounded-xl print:bg-white print:border print:border-purple-200">📈</span> สรุปข้อมูลแยกตามเขต</h2>
@@ -571,8 +585,9 @@ export default function App() {
           )}
         </div>
 
-        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ (อัดอักษรใหญ่เบิ้ม ยืดกระดาษเต็มหน้า) --- */}
-        <div className="max-w-5xl mx-auto mt-12 print:mt-8">
+        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ --- */}
+        {/* ✨ เปลี่ยน max-w-5xl เป็น print:max-w-full print:w-full ห้าม Chrome บีบกระดาษ */}
+        <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0">
           {planningLevel !== 'คริสตจักร' && (
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
               
@@ -640,7 +655,6 @@ export default function App() {
 
                 </div>
 
-                {/* ✨ ขยายร่าง! ให้ฟอร์ม 6 มิติ ใหญ่ทะลุจอตอนปริ้น */}
                 <div className="space-y-8 print:space-y-16 pt-8 text-[1.05rem] leading-relaxed text-gray-800 print:break-before-page print:pt-12 mt-6">
                   <h2 className="text-xl print:text-4xl font-bold text-gray-900 mb-4 print:mb-10 flex items-center gap-2 print:gap-4"><span className="bg-gray-800 text-white w-6 h-6 print:w-12 print:h-12 rounded-full flex items-center justify-center text-sm print:text-2xl print:border print:border-black print:bg-white print:text-black">2</span> การวางแผนตาม 6 มิติการขับเคลื่อนคริสตจักร</h2>
                   
