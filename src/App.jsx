@@ -3,6 +3,15 @@ import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
 import { QRCodeSVG } from 'qrcode.react'
 
+const defaultPlanForm = {
+  t_mem:'', t_cell:'', t_lead:'', t_men:'',
+  d1_1:'', d1_2:'', d1_3:'',
+  d2_1_1:'', d2_1_2:'', d2_1_3:'', d2_2_1:'', d2_2_2:'', d2_2_3:'',
+  d3_1:'', d3_1_1:'', d3_1_2:'', d3_1_3:'', d3_2:'', d3_2_1:'', d3_2_2:'', d3_2_3:'',
+  d4_1:'', d4_1_1:'', d4_1_2:'', d4_1_3:'', d4_2:'', d4_2_1:'', d4_2_2:'', d4_2_3:'',
+  d5_1:'', d6_1:'', d6_2:''
+};
+
 export default function App() {
   const [currentView, setCurrentView] = useState('login')
   const [userName, setUserName] = useState('')
@@ -34,16 +43,19 @@ export default function App() {
   })
 
   const [isSavingPlan, setIsSavingPlan] = useState(false)
-  const [planForm, setPlanForm] = useState({
-    t_mem:'', t_cell:'', t_lead:'', t_men:'',
-    d1_1:'', d1_2:'', d1_3:'',
-    d2_1_1:'', d2_1_2:'', d2_1_3:'', d2_2_1:'', d2_2_2:'', d2_2_3:'',
-    d3_1:'', d3_1_1:'', d3_1_2:'', d3_1_3:'', d3_2:'', d3_2_1:'', d3_2_2:'', d3_2_3:'',
-    d4_1:'', d4_1_1:'', d4_1_2:'', d4_1_3:'', d4_2:'', d4_2_1:'', d4_2_2:'', d4_2_3:'',
-    d5_1:'', d6_1:'', d6_2:''
-  })
+  const [planForm, setPlanForm] = useState(defaultPlanForm)
 
-  const b = (f) => ({ value: planForm[f], onChange: e => setPlanForm({...planForm, [f]: e.target.value}) })
+  const b = (f) => ({ 
+    value: planForm[f] || '', 
+    onChange: e => {
+      const newPlan = {...planForm, [f]: e.target.value};
+      setPlanForm(newPlan);
+      const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
+      if (areaKey) {
+        localStorage.setItem('planForm_' + areaKey, JSON.stringify(newPlan));
+      }
+    } 
+  })
 
   const cellLeaderRoles = ['หัวหน้าเซลล์', 'หนซ.', 'หนซ'];
   const assistantRoles = ['ผู้ช่วยหัวหน้าเซลล์', 'ผช.หนซ.', 'ผช.หนซ'];
@@ -65,6 +77,15 @@ export default function App() {
     { month: 'สิงหาคม 2026', days: [{ date: '2026-08-02', label: 'อาทิตย์ 2 ส.ค.' }, { date: '2026-08-09', label: 'อาทิตย์ 9 ส.ค.' }, { date: '2026-08-16', label: 'อาทิตย์ 16 ส.ค.' }, { date: '2026-08-23', label: 'อาทิตย์ 23 ส.ค.' }, { date: '2026-08-30', label: 'อาทิตย์ 30 ส.ค.' }] },
     { month: 'กันยายน 2026', days: [{ date: '2026-09-06', label: 'อาทิตย์ 6 ก.ย.' }, { date: '2026-09-13', label: 'อาทิตย์ 13 ก.ย.' }, { date: '2026-09-20', label: 'อาทิตย์ 20 ก.ย.' }, { date: '2026-09-27', label: 'อาทิตย์ 27 ก.ย.' }] }
   ];
+
+  // ✨ ระบบ Smart Memory ดึงค่าเป้าหมายล่าสุดที่เคยพิมพ์มาใช้ให้อัตโนมัติ
+  useEffect(() => {
+    const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
+    if (areaKey) {
+      const savedTarget = localStorage.getItem('target_' + areaKey) || localStorage.getItem('last_used_target') || '';
+      setAreaTarget(savedTarget);
+    }
+  }, [selectedArea, planningLevel]);
 
   useEffect(() => {
     async function fetchData() {
@@ -135,8 +156,12 @@ export default function App() {
   const handleLogin = async (e) => {
     e.preventDefault()
     const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
-    const savedTarget = localStorage.getItem('target_' + areaKey) || '';
-    setAreaTarget(savedTarget);
+    const savedPlan = localStorage.getItem('planForm_' + areaKey);
+    if (savedPlan) {
+      try { setPlanForm(JSON.parse(savedPlan)); } catch(err) { setPlanForm(defaultPlanForm); }
+    } else {
+      setPlanForm(defaultPlanForm);
+    }
 
     setIsLoading(true)
     try {
@@ -187,6 +212,9 @@ export default function App() {
       const payload = { level: planningLevel, area: selectedArea, reporter: userName, plan_data: planForm }
       const { error } = await supabase.from('church_plans').insert([payload])
       if (error) throw error
+      
+      const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
+      localStorage.removeItem('planForm_' + areaKey);
       setCurrentView('success')
     } catch (error) { alert('บันทึกแผนงานไม่สำเร็จ: ' + error.message) } finally { setIsSavingPlan(false) }
   }
@@ -447,7 +475,12 @@ export default function App() {
               <div className="text-right mt-4 md:mt-0 print:mt-0">
                 <div className="flex items-center justify-end gap-3 mb-2">
                   <p className="text-gray-700 font-bold text-base">เป้าหมายไตรมาส 3 :</p>
-                  <input type="number" placeholder="ระบุเป้า" className="w-16 border-b-2 border-orange-300 text-center text-orange-600 font-black text-xl focus:outline-none bg-transparent print:border-none" value={areaTarget} onChange={(e) => { setAreaTarget(e.target.value); const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea; localStorage.setItem('target_' + areaKey, e.target.value); }} />
+                  <input type="number" placeholder="ระบุเป้า" className="w-16 border-b-2 border-orange-300 text-center text-orange-600 font-black text-xl focus:outline-none bg-transparent print:border-none" value={areaTarget} onChange={(e) => { 
+                    setAreaTarget(e.target.value); 
+                    const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea; 
+                    localStorage.setItem('target_' + areaKey, e.target.value); 
+                    localStorage.setItem('last_used_target', e.target.value); // ✨ เซฟค่าล่าสุดไว้จำอัตโนมัติ
+                  }} />
                 </div>
                 <div className="flex items-center justify-end gap-3">
                   <p className="text-gray-700 font-bold text-sm md:text-base">ค่าเฉลี่ย : <span className="text-green-500 font-black text-lg">{avgAttendance}</span></p>
@@ -456,11 +489,10 @@ export default function App() {
               </div>
             </div>
             
-            {/* ✨ แก้ไขกราฟ: เพิ่ม height={80} ให้แกน XAxis และลด margin bottom ของตัวกราฟลงมา */}
-            <div className="h-[400px] w-full mt-4 print:h-[400px]">
+            <div className="h-[450px] w-full mt-4 print:h-[400px]">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={attendanceData} margin={{ top: 30, right: 20, left: -20, bottom: 5 }}>
+                  <BarChart data={attendanceData} margin={{ top: 30, right: 20, left: -20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis 
                       dataKey="date" 
@@ -469,7 +501,8 @@ export default function App() {
                       textAnchor="end" 
                       axisLine={false} 
                       tickLine={false} 
-                      height={80} // 👈 จุดสำคัญที่แก้ปัญหาขอบตัดขาดครับ!
+                      height={80} 
+                      tickMargin={10}
                     />
                     <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
@@ -539,14 +572,14 @@ export default function App() {
           )}
         </div>
 
-        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ --- */}
-        <div className="max-w-5xl mx-auto print:break-before-page mt-12 print:mt-8">
+        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ (ปลดล็อคการห้ามตัดหน้ากระดาษแล้ว!) --- */}
+        <div className="max-w-5xl mx-auto mt-12 print:mt-8">
           {planningLevel !== 'คริสตจักร' && (
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
               
               <form onSubmit={handleSavePlan} className="text-gray-900">
                 
-                <div className="print:break-inside-avoid pb-4">
+                <div className="pb-4">
                   <div className="mb-12 pb-8 border-b-2 border-orange-200">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-8 tracking-tight">แบบฟอร์มวางแผนรับใช้ 6 มิติ (ปี 2027)</h1>
                     <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><span className="bg-orange-300 w-2 h-6 rounded-full inline-block"></span>ข้อมูล{planningLevel}และผู้รับผิดชอบ</h3>
@@ -608,10 +641,11 @@ export default function App() {
 
                 </div>
 
+                {/* ✨ เอาคำสั่งล็อคบรรทัดให้อยู่หน้าเดียวกันออกแล้ว ข้อมูลจะไหลเรียงเติมเต็มช่องว่างอัตโนมัติ */}
                 <div className="space-y-8 pt-8 text-[1.05rem] leading-relaxed text-gray-800 print:break-before-page print:pt-6 mt-6">
                   <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs print:border print:border-black print:bg-white print:text-black">2</span> การวางแผนตาม 6 มิติการขับเคลื่อนคริสตจักร</h2>
                   
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4">
                     <h3 className="font-bold text-gray-900 mb-3 text-base">1. มิติด้านการเจริญเติบโตด้านปริมาณ (Quantitative Growth)</h3>
                     <div className="pl-6 space-y-3">
                       <div className="flex flex-wrap items-end gap-2"><span className="pb-1 text-sm">1.1. เป้าหมายจำนวนสมาชิกใน{planningLevel}ที่เพิ่มขึ้นในปี 2027:</span><input type="number" {...b('d1_1')} className="border-b border-orange-300 w-20 text-center focus:outline-none focus:border-orange-600 text-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-sm" /><span className="pb-1 text-sm">คน</span></div>
@@ -620,7 +654,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4">
                     <h3 className="font-bold text-gray-900 mb-3 text-base">2. มิติด้านการพัฒนาสมาชิกให้มีคุณภาพ (Developing High Quality Member Resources)</h3>
                     <div className="pl-6 space-y-4">
                       <div>
@@ -642,7 +676,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4">
                     <h3 className="font-bold text-gray-900 mb-3 text-base">3. มิติด้านการบุกเบิกคริสตจักร กลุ่ม Cell และพันธกิจใหม่</h3>
                     <div className="pl-6 space-y-4">
                       <div>
@@ -666,7 +700,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4">
                     <h3 className="font-bold text-gray-900 mb-3 text-base">4. มิติด้านการพัฒนาผู้นำและเสริมสร้างขีดความสามารถ (Leadership Capacity)</h3>
                     <div className="pl-6 space-y-4">
                       <div>
@@ -690,12 +724,12 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4">
                     <h3 className="font-bold text-gray-900 mb-3 text-base">5. มิติด้านการอธิษฐานและการนมัสการ (Prayer & Worship)</h3>
                     <div className="pl-6"><span className="block mb-2 font-bold text-sm">5.1. แผนการรณรงค์ให้สมาชิกใน{planningLevel}เข้าร่วมโปรแกรมอธิษฐานให้ได้ 80% ขึ้นไป:</span><textarea {...b('d5_1')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 transition-colors print:border-gray-400 print:text-black text-sm"></textarea></div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4">
                     <h3 className="font-bold text-gray-900 mb-3 text-base">6. มิติด้านความสัมพันธ์ (Relationship - HCRI)</h3>
                     <div className="pl-6 space-y-4">
                       <div><span className="block mb-2 font-bold text-sm">6.1. แผนการเยี่ยมเยียนและดูแลกัน (Mutual Care):</span><textarea {...b('d6_1')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 transition-colors print:border-gray-400 print:text-black text-sm"></textarea></div>
