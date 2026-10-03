@@ -301,10 +301,9 @@ export default function App() {
     )
   }
 
-  // ✨ หน้า Dashboard (อัปเดตเอาพื้นหลังออกตอนปริ้น และเปลี่ยน Textarea เป็นกล่องเส้นประ)
+  // ✨ หน้า Dashboard
   if (currentView === 'dashboard') {
     return (
-      // ✨ ใส่ print:bg-none และ print:bg-white เพื่อให้ตอนปริ้นเป็นกระดาษขาวล้วน ประหยัดหมึก
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8 relative print:bg-white print:bg-none print:p-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
         
         {/* --- 📄 หน้าที่ 1: แดชบอร์ดสรุปสถิติ --- */}
@@ -318,11 +317,11 @@ export default function App() {
                 {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium">ผู้รับผิดชอบ: {userName}</p>}
               </div>
               <div className="flex items-center gap-4 bg-orange-50 p-3 rounded-2xl border border-orange-200">
-                <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-orange-400 overflow-hidden">
-                  {/* ✨ แก้ไขตรงนี้: เพิ่ม QR Code สำหรับหน้า Print */}
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://church-plan-2027.vercel.app/" alt="QR Code" className="w-full h-full object-cover p-1" />
+                {/* ✨ ปรับขนาด QR Code หน้า Print ให้ใหญ่ขึ้น (w-24 h-24) */}
+                <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-orange-400 overflow-hidden">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://church-plan-2027.vercel.app/" alt="QR Code" className="w-full h-full object-cover" />
                 </div>
-                <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-xs">สแกนเพื่อจัดการข้อมูล</p></div>
+                <div className="text-base"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-sm">สแกนเพื่อจัดการข้อมูล</p></div>
               </div>
             </div>
           </div>
@@ -337,9 +336,9 @@ export default function App() {
             </div>
             <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
               <div className="flex items-center gap-4 bg-orange-50/50 p-2.5 px-4 rounded-2xl border-2 border-dashed border-orange-300 w-full md:w-auto">
-                <div className="flex items-center justify-center w-10 h-10 bg-white rounded-lg overflow-hidden border border-orange-200">
-                  {/* ✨ แก้ไขตรงนี้: เพิ่ม QR Code สำหรับหน้าจอปกติ */}
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://church-plan-2027.vercel.app/" alt="QR Code" className="w-full h-full object-cover p-0.5" />
+                {/* ✨ ปรับขนาด QR Code หน้าจอให้ใหญ่ขึ้นนิดนึง (w-12 h-12) */}
+                <div className="flex items-center justify-center w-12 h-12 bg-white rounded-lg overflow-hidden border border-orange-200">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://church-plan-2027.vercel.app/" alt="QR Code" className="w-full h-full object-cover" />
                 </div>
                 <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-[11px]">สแกนเพื่อจัดการข้อมูลออนไลน์</p></div>
               </div>
@@ -404,9 +403,28 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div className="h-80 w-full mt-4 print:h-64">
+            
+            {/* ✨ แก้ไขกราฟ: เพิ่มความสูงกราฟ และปรับ margin ให้ตัวอักษรแกน X ไม่ตกขอบ */}
+            <div className="h-[350px] w-full mt-4 print:h-[320px]">
               {attendanceData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%"><BarChart data={attendanceData} margin={{ top: 25, right: 0, left: -20, bottom: 25 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 11, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} /><YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 'bold'}} axisLine={false} tickLine={false} /><Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} /><Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={40}><LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={12} offset={10} /></Bar><defs><linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ef4444" stopOpacity={1}/><stop offset="100%" stopColor="#f97316" stopOpacity={1}/></linearGradient></defs></BarChart></ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
+                  {/* ✨ แก้ไข margin ตรงนี้: bottom: 65, right: 20 */}
+                  <BarChart data={attendanceData} margin={{ top: 25, right: 20, left: -20, bottom: 65 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 11, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
+                    <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={40}>
+                      <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={12} offset={10} />
+                    </Bar>
+                    <defs>
+                      <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ef4444" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#f97316" stopOpacity={1}/>
+                      </linearGradient>
+                    </defs>
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-orange-200 rounded-3xl bg-orange-50/50 print:bg-white print:border-gray-300"><span className="text-5xl mb-3">📉</span><p className="text-orange-400 print:text-gray-500 font-bold text-xl">ยังไม่มีข้อมูลสถิติ</p></div>
               )}
