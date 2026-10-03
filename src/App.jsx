@@ -391,9 +391,9 @@ export default function App() {
           
           <div className="hidden print:flex justify-between items-center border-b-2 border-orange-500 pb-6 mb-4 print:mb-2">
             <div>
-              <h1 className="text-4xl font-black text-gray-900">รายงานข้อมูลและแผนงาน ปี 2027</h1>
-              <p className="text-xl text-gray-600 font-bold mt-2">ระดับ{planningLevel === 'คริสตจักร' ? 'คริสตจักรแห่งนิมิตพิษณุโลก' : `${planningLevel}: ${selectedArea}`}</p>
-              {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium mt-1">ผู้รับผิดชอบ: {userName}</p>}
+              <h1 className="text-4xl font-black text-gray-900 print:text-5xl">รายงานข้อมูลและแผนงาน ปี 2027</h1>
+              <p className="text-xl text-gray-600 font-bold mt-2 print:text-2xl">ระดับ{planningLevel === 'คริสตจักร' ? 'คริสตจักรแห่งนิมิตพิษณุโลก' : `${planningLevel}: ${selectedArea}`}</p>
+              {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium mt-1 print:text-xl">ผู้รับผิดชอบ: {userName}</p>}
             </div>
             <div className="flex items-center gap-4 bg-orange-50 p-4 rounded-3xl border border-orange-200">
               <div className="bg-white p-2 rounded-2xl shadow-sm border border-orange-100">
@@ -431,30 +431,30 @@ export default function App() {
           </div>
 
           <div className={`grid grid-cols-1 ${planningLevel === 'แขวง' ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4 md:gap-6`}>
-            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-rose-400 print:from-white print:to-white">
-              <h3 className="font-bold text-white mb-1 print:text-rose-600">สมาชิกทั้งหมด</h3>
-              <p className="text-4xl font-black text-white print:text-rose-700">{members.length} <span className="text-lg font-normal opacity-90 print:text-rose-500">คน</span></p>
+            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-rose-400 print:from-white print:to-white print:p-4">
+              <h3 className="font-bold text-white mb-1 print:text-rose-600 print:text-lg">สมาชิกทั้งหมด</h3>
+              <p className="text-4xl font-black text-white print:text-rose-700 print:text-5xl">{members.length} <span className="text-lg font-normal opacity-90 print:text-rose-500 print:text-2xl">คน</span></p>
             </div>
             {(planningLevel === 'เขต' || planningLevel === 'คริสตจักร') && (
-              <div className="bg-gradient-to-r from-violet-500 to-purple-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-purple-400 print:from-white print:to-white">
-                <h3 className="font-bold text-white mb-1 print:text-purple-600">แขวงทั้งหมด</h3>
-                <p className="text-4xl font-black text-white print:text-purple-700">{uniqueKwangCount} <span className="text-lg font-normal opacity-90 print:text-purple-500">แขวง</span></p>
+              <div className="bg-gradient-to-r from-violet-500 to-purple-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-purple-400 print:from-white print:to-white print:p-4">
+                <h3 className="font-bold text-white mb-1 print:text-purple-600 print:text-lg">แขวงทั้งหมด</h3>
+                <p className="text-4xl font-black text-white print:text-purple-700 print:text-5xl">{uniqueKwangCount} <span className="text-lg font-normal opacity-90 print:text-purple-500 print:text-2xl">แขวง</span></p>
               </div>
             )}
             {planningLevel === 'คริสตจักร' && (
-              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-blue-400 print:from-white print:to-white">
-                <h3 className="font-bold text-white mb-1 print:text-blue-600">เขตทั้งหมด</h3>
-                <p className="text-4xl font-black text-white print:text-blue-700">{uniqueZoneCount} <span className="text-lg font-normal opacity-90 print:text-blue-500">เขต</span></p>
+              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-blue-400 print:from-white print:to-white print:p-4">
+                <h3 className="font-bold text-white mb-1 print:text-blue-600 print:text-lg">เขตทั้งหมด</h3>
+                <p className="text-4xl font-black text-white print:text-blue-700 print:text-5xl">{uniqueZoneCount} <span className="text-lg font-normal opacity-90 print:text-blue-500 print:text-2xl">เขต</span></p>
               </div>
             )}
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-orange-400 print:from-white print:to-white">
-              <h3 className="font-bold text-white mb-1 print:text-orange-600">หน่วยทั้งหมด</h3>
-              <p className="text-4xl font-black text-white print:text-orange-700">{uniqueUnitCount} <span className="text-lg font-normal opacity-90 print:text-orange-500">หน่วย</span></p>
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-orange-400 print:from-white print:to-white print:p-4">
+              <h3 className="font-bold text-white mb-1 print:text-orange-600 print:text-lg">หน่วยทั้งหมด</h3>
+              <p className="text-4xl font-black text-white print:text-orange-700 print:text-5xl">{uniqueUnitCount} <span className="text-lg font-normal opacity-90 print:text-orange-500 print:text-2xl">หน่วย</span></p>
             </div>
             {planningLevel !== 'คริสตจักร' && (
-              <div className="bg-gradient-to-r from-teal-400 to-emerald-400 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-teal-400 print:from-white print:to-white">
-                <h3 className="font-bold text-white mb-1 print:text-teal-600">กลุ่มเซลล์ทั้งหมด</h3>
-                <p className="text-4xl font-black text-white print:text-teal-700">{uniqueCellCount} <span className="text-lg font-normal opacity-90 print:text-teal-500">กลุ่ม</span></p>
+              <div className="bg-gradient-to-r from-teal-400 to-emerald-400 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border-2 print:border-teal-400 print:from-white print:to-white print:p-4">
+                <h3 className="font-bold text-white mb-1 print:text-teal-600 print:text-lg">กลุ่มเซลล์ทั้งหมด</h3>
+                <p className="text-4xl font-black text-white print:text-teal-700 print:text-5xl">{uniqueCellCount} <span className="text-lg font-normal opacity-90 print:text-teal-500 print:text-2xl">กลุ่ม</span></p>
               </div>
             )}
           </div>
@@ -487,8 +487,8 @@ export default function App() {
               </div>
             </div>
             
-            {/* ✨ ล็อคความสูงกราฟตอนปริ้นให้เตี้ยลง (280px) เพื่อให้ไม่โดนตัดขาดเมื่อจัดอยู่หน้า 1 */}
-            <div className="h-[450px] w-full mt-4 print:h-[280px] print:break-inside-avoid">
+            {/* ✨ แก้ไขที่นี่: ปรับให้กราฟมีความสูงน้อยลงเวลาปริ้น (ลดจาก 280px เหลือ 200px) เพื่อให้เราซูม 120% ได้โดยกราฟไม่ใหญ่ล้นจอ */}
+            <div className="h-[450px] w-full mt-4 print:h-[200px] print:break-inside-avoid">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
@@ -529,14 +529,15 @@ export default function App() {
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3 mb-6"><span className="bg-purple-100 text-purple-600 p-2.5 rounded-xl print:bg-white print:border print:border-purple-200">📈</span> สรุปข้อมูลแยกตามเขต</h2>
               <div className="overflow-x-auto print:overflow-visible border border-gray-100 rounded-2xl print:border-gray-400">
                 <table className="w-full text-center border-collapse whitespace-nowrap">
-                  <thead className="bg-gray-50 text-gray-500 text-sm border-b border-gray-100 print:border-gray-400 print:bg-gray-100">
+                  {/* ✨ เพิ่ม print:text-lg ให้หัวตารางใหญ่ขึ้น */}
+                  <thead className="bg-gray-50 text-gray-500 text-sm border-b border-gray-100 print:border-gray-400 print:bg-gray-100 print:text-lg">
                     <tr><th className="p-5 font-bold text-left border-r print:border-gray-300">ชื่อเขต</th><th className="p-5 font-bold border-r print:border-gray-300">จำนวนแขวง</th><th className="p-5 font-bold border-r print:border-gray-300">จำนวนหน่วย</th><th className="p-5 font-bold border-r print:border-gray-300">จำนวนกลุ่มเซลล์</th><th className="p-5 font-black text-orange-600">จำนวนสมาชิก (คน)</th></tr>
                   </thead>
                   <tbody className="bg-white">
                     {churchSummary.map((summary, idx) => (
-                      <tr key={idx} className="border-b border-gray-50 print:border-gray-300 hover:bg-orange-50/30 transition-colors"><td className="p-5 font-extrabold text-gray-800 text-left border-r print:border-gray-300">{summary.zone || 'ไม่ได้ระบุเขต'}</td><td className="p-5 text-gray-600 font-medium border-r print:border-gray-300">{summary.kwangs} แขวง</td><td className="p-5 text-gray-600 font-medium border-r print:border-gray-300">{summary.units} หน่วย</td><td className="p-5 text-gray-600 font-medium border-r print:border-gray-300">{summary.cells} กลุ่ม</td><td className="p-5 text-orange-600 font-black text-xl">{summary.members}</td></tr>
+                      <tr key={idx} className="border-b border-gray-50 print:border-gray-300 hover:bg-orange-50/30 transition-colors"><td className="p-5 font-extrabold text-gray-800 text-left border-r print:border-gray-300 print:text-xl">{summary.zone || 'ไม่ได้ระบุเขต'}</td><td className="p-5 text-gray-600 font-medium border-r print:border-gray-300 print:text-lg">{summary.kwangs} แขวง</td><td className="p-5 text-gray-600 font-medium border-r print:border-gray-300 print:text-lg">{summary.units} หน่วย</td><td className="p-5 text-gray-600 font-medium border-r print:border-gray-300 print:text-lg">{summary.cells} กลุ่ม</td><td className="p-5 text-orange-600 font-black text-xl print:text-2xl">{summary.members}</td></tr>
                     ))}
-                    <tr className="bg-orange-50 print:bg-orange-100 font-black text-gray-900 border-t-2 border-orange-100 print:border-gray-400"><td className="p-5 text-left border-r print:border-gray-300">รวมทั้งคริสตจักร</td><td className="p-5 border-r print:border-gray-300">{uniqueKwangCount} แขวง</td><td className="p-5 border-r print:border-gray-300">{uniqueUnitCount} หน่วย</td><td className="p-5 border-r print:border-gray-300">{uniqueCellCount} กลุ่ม</td><td className="p-5 text-rose-600 text-2xl">{members.length}</td></tr>
+                    <tr className="bg-orange-50 print:bg-orange-100 font-black text-gray-900 border-t-2 border-orange-100 print:border-gray-400 print:text-xl"><td className="p-5 text-left border-r print:border-gray-300">รวมทั้งคริสตจักร</td><td className="p-5 border-r print:border-gray-300">{uniqueKwangCount} แขวง</td><td className="p-5 border-r print:border-gray-300">{uniqueUnitCount} หน่วย</td><td className="p-5 border-r print:border-gray-300">{uniqueCellCount} กลุ่ม</td><td className="p-5 text-rose-600 text-2xl print:text-3xl">{members.length}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -550,15 +551,16 @@ export default function App() {
               <div className="overflow-auto max-h-[500px] print:max-h-none print:overflow-visible pr-2 space-y-6">
                 {sortedCells.map(cellName => (
                   <div key={cellName} className="border border-gray-100 print:border-gray-400 rounded-2xl overflow-hidden shadow-sm print:shadow-none print:break-inside-avoid">
-                    <div className="bg-slate-50 print:bg-gray-100 border-b border-gray-100 print:border-gray-400 p-4 flex justify-between items-center"><h3 className="font-black text-slate-700 text-lg flex items-center gap-2"><span className="text-sky-500">❖</span> กลุ่ม: {cellName}</h3><span className="bg-white text-sky-600 text-sm font-bold px-4 py-1.5 rounded-full border border-sky-100 print:border-gray-300 shadow-sm print:shadow-none">{groupedMembers[cellName].length} คน</span></div>
+                    <div className="bg-slate-50 print:bg-gray-100 border-b border-gray-100 print:border-gray-400 p-4 flex justify-between items-center"><h3 className="font-black text-slate-700 text-lg flex items-center gap-2 print:text-xl"><span className="text-sky-500">❖</span> กลุ่ม: {cellName}</h3><span className="bg-white text-sky-600 text-sm font-bold px-4 py-1.5 rounded-full border border-sky-100 print:border-gray-300 shadow-sm print:shadow-none print:text-base">{groupedMembers[cellName].length} คน</span></div>
                     <div className="overflow-x-auto print:overflow-visible">
                       <table className="w-full text-left border-collapse whitespace-nowrap">
-                        <thead className="bg-white text-gray-400 print:text-gray-600 text-xs uppercase tracking-wider">
+                        {/* ✨ เพิ่ม print:text-sm ให้หัวตาราง */}
+                        <thead className="bg-white text-gray-400 print:text-gray-600 text-xs uppercase tracking-wider print:text-sm">
                           <tr><th className="p-4 font-bold border-b border-gray-50 print:border-gray-300">ชื่อ-สกุล (ชื่อเล่น)</th><th className="p-4 font-bold border-b border-gray-50 print:border-gray-300">เบอร์โทร</th><th className="p-4 font-bold border-b border-gray-50 print:border-gray-300 text-center">อายุ/เพศ</th><th className="p-4 font-bold border-b border-gray-50 print:border-gray-300">สถานะ</th><th className="p-4 font-bold border-b border-gray-50 print:border-gray-300 text-center print:hidden">จัดการ</th></tr>
                         </thead>
                         <tbody className="bg-white">
                           {groupedMembers[cellName].map((m, i) => (
-                            <tr key={m.id || i} className="border-b border-gray-50 print:border-gray-200 hover:bg-slate-50 transition-colors"><td className="p-4 font-bold text-gray-700">{m['ชื่อ-สกุล']} {m['ชื่อเล่น'] ? <span className="text-gray-400 font-medium ml-2">({m['ชื่อเล่น']})</span> : ''}</td><td className="p-4 text-gray-500 text-sm font-medium">{m['เบอร์โทร'] || '-'}</td><td className="p-4 text-gray-500 text-center text-sm font-medium">{m['อายุ'] ? `${m['อายุ']} ปี` : '-'} {m['เพศ'] ? `(${m['เพศ']})` : ''}</td><td className="p-4"><span className={`px-3 py-1 rounded-full text-xs font-black print:border print:border-gray-300 print:bg-white ${cellLeaderRoles.includes(m['สถานะ']) ? 'bg-orange-100 text-orange-700' : mentorRoles.includes(m['สถานะ']) ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{m['สถานะ'] || 'สมาชิก'}</span></td><td className="p-4 text-center print:hidden"><button onClick={() => handleOpenEdit(m)} className="text-gray-400 hover:text-sky-600 hover:bg-sky-50 px-4 py-2 rounded-xl transition text-sm font-bold">แก้ไข</button></td></tr>
+                            <tr key={m.id || i} className="border-b border-gray-50 print:border-gray-200 hover:bg-slate-50 transition-colors"><td className="p-4 font-bold text-gray-700 print:text-lg">{m['ชื่อ-สกุล']} {m['ชื่อเล่น'] ? <span className="text-gray-400 font-medium ml-2 print:text-base">({m['ชื่อเล่น']})</span> : ''}</td><td className="p-4 text-gray-500 text-sm font-medium print:text-base">{m['เบอร์โทร'] || '-'}</td><td className="p-4 text-gray-500 text-center text-sm font-medium print:text-base">{m['อายุ'] ? `${m['อายุ']} ปี` : '-'} {m['เพศ'] ? `(${m['เพศ']})` : ''}</td><td className="p-4"><span className={`px-3 py-1 rounded-full text-xs font-black print:border print:border-gray-300 print:bg-white print:text-sm ${cellLeaderRoles.includes(m['สถานะ']) ? 'bg-orange-100 text-orange-700' : mentorRoles.includes(m['สถานะ']) ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{m['สถานะ'] || 'สมาชิก'}</span></td><td className="p-4 text-center print:hidden"><button onClick={() => handleOpenEdit(m)} className="text-gray-400 hover:text-sky-600 hover:bg-sky-50 px-4 py-2 rounded-xl transition text-sm font-bold">แก้ไข</button></td></tr>
                           ))}
                         </tbody>
                       </table>
@@ -639,7 +641,6 @@ export default function App() {
 
                 </div>
 
-                {/* ✨ ตัวหนังสือใหญ่ทะลุจอ! */}
                 <div className="space-y-8 print:space-y-16 pt-8 text-[1.05rem] leading-relaxed text-gray-800 print:break-before-page print:pt-12 mt-6">
                   <h2 className="text-xl print:text-3xl font-bold text-gray-900 mb-4 print:mb-8 flex items-center gap-2 print:gap-4"><span className="bg-gray-800 text-white w-6 h-6 print:w-10 print:h-10 rounded-full flex items-center justify-center text-sm print:text-xl print:border print:border-black print:bg-white print:text-black">2</span> การวางแผนตาม 6 มิติการขับเคลื่อนคริสตจักร</h2>
                   
