@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
-import { QRCodeSVG } from 'qrcode.react'
 
 export default function App() {
   const [currentView, setCurrentView] = useState('login')
@@ -57,8 +56,6 @@ export default function App() {
   const totalAttendance = attendanceData.reduce((sum, item) => sum + item.count, 0);
   const avgAttendance = attendanceData.length > 0 ? Math.round(totalAttendance / attendanceData.length) : 0;
   const percentage = areaTarget && Number(areaTarget) > 0 ? Math.round((avgAttendance / Number(areaTarget)) * 100) : 0;
-
-  const liveUrl = "https://church-plan-2027.vercel.app/"
 
   const monthsQ3 = [
     { month: 'กรกฎาคม 2026', days: [{ date: '2026-07-05', label: 'อาทิตย์ 5 ก.ค.' }, { date: '2026-07-12', label: 'อาทิตย์ 12 ก.ค.' }, { date: '2026-07-19', label: 'อาทิตย์ 19 ก.ค.' }, { date: '2026-07-26', label: 'อาทิตย์ 26 ก.ค.' }] },
@@ -304,13 +301,14 @@ export default function App() {
     )
   }
 
-  // ✨ หน้า Dashboard (พร้อมระบบซ่อนปุ่มอัตโนมัติเวลาสั่งปริ้น)
+  // ✨ หน้า Dashboard (อัปเดตเอาพื้นหลังออกตอนปริ้น และเปลี่ยน Textarea เป็นกล่องเส้นประ)
   if (currentView === 'dashboard') {
     return (
+      // ✨ ใส่ print:bg-none และ print:bg-white เพื่อให้ตอนปริ้นเป็นกระดาษขาวล้วน ประหยัดหมึก
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8 relative print:bg-white print:bg-none print:p-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
         
         {/* --- 📄 หน้าที่ 1: แดชบอร์ดสรุปสถิติ --- */}
-        <div className="max-w-6xl mx-auto space-y-6 print:space-y-6 print:break-after-page">
+        <div className="max-w-6xl mx-auto space-y-6 print:space-y-6">
           
           <div className="hidden print:flex flex-col border-b-2 border-orange-500 pb-4 mb-4">
             <div className="flex justify-between items-start">
@@ -320,8 +318,8 @@ export default function App() {
                 {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium">ผู้รับผิดชอบ: {userName}</p>}
               </div>
               <div className="flex items-center gap-4 bg-orange-50 p-3 rounded-2xl border border-orange-200">
-                <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center p-1">
-                  <QRCodeSVG value={liveUrl} size={56} />
+                <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-orange-400">
+                  <svg className="w-8 h-8 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
                 </div>
                 <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-xs">สแกนเพื่อจัดการข้อมูล</p></div>
               </div>
@@ -338,9 +336,7 @@ export default function App() {
             </div>
             <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
               <div className="flex items-center gap-4 bg-orange-50/50 p-2.5 px-4 rounded-2xl border-2 border-dashed border-orange-300 w-full md:w-auto">
-                <div className="flex items-center justify-center p-1 bg-white rounded-xl">
-                  <QRCodeSVG value={liveUrl} size={48} />
-                </div>
+                <div className="flex items-center justify-center"><svg className="w-8 h-8 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg></div>
                 <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-[11px]">สแกนเพื่อจัดการข้อมูลออนไลน์</p></div>
               </div>
               <div className="flex gap-3 w-full md:w-auto print:hidden">
@@ -469,7 +465,18 @@ export default function App() {
               
               <form onSubmit={handleSavePlan} className="text-gray-900">
                 
+                {/* ✨ มัดรวม กล่อง KPI + ตารางเป้าหมาย ให้อยู่หน้าเดียวกันเสมอ (กันการโดนเบราว์เซอร์ตัดขาดครึ่ง) */}
                 <div className="print:break-inside-avoid pb-4">
+                  
+                  <div className="mb-12 pb-8 border-b-2 border-orange-200 print:hidden">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-8 tracking-tight">แบบฟอร์มวางแผนรับใช้ ประจำปี 2027</h1>
+                    <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><span className="bg-orange-300 w-2 h-6 rounded-full inline-block"></span>ข้อมูล{planningLevel}และผู้รับผิดชอบ</h3>
+                    <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-12 text-lg font-medium text-gray-800">
+                      <div className="flex items-end gap-3 w-full md:w-auto"><span className="whitespace-nowrap">ชื่อ{planningLevel}:</span><span className="border-b-2 border-dotted border-orange-300 flex-1 md:w-64 text-center font-bold text-orange-600 pb-1 px-4">{selectedArea}</span></div>
+                      <div className="flex items-end gap-3 w-full md:w-auto"><span className="whitespace-nowrap">ชื่อหัวหน้า{planningLevel}:</span><span className="border-b-2 border-dotted border-orange-300 flex-1 md:w-80 text-center font-bold text-orange-600 pb-1 px-4">{userName}</span></div>
+                    </div>
+                  </div>
+
                   <div className="bg-white border-2 border-[#ea580c] rounded-2xl p-4 md:p-6 mb-8 relative shadow-sm print:border-orange-500">
                     <div className="absolute top-0 right-0 bg-[#1e293b] text-white font-bold py-1 px-4 rounded-bl-xl text-xs tracking-widest print:bg-white print:text-black print:border-b print:border-l print:border-orange-500">KPI 2027</div>
                     <h2 className="text-lg font-bold text-[#ea580c] mb-4 flex items-center gap-2 mt-1"><span className="bg-[#ffedd5] p-1.5 rounded-md text-base">🎯</span> สรุปภาพรวมเป้าหมายคริสตจักร ปี 2027</h2>
@@ -522,9 +529,11 @@ export default function App() {
 
                 </div>
 
+                {/* ✨ เปลี่ยนช่องกรอกข้อความยาวๆ เป็นกล่องเส้นประทั้งหมดให้ดูน่าพิมพ์ */}
                 <div className="space-y-8 pt-8 text-[1.05rem] leading-relaxed text-gray-800 print:break-before-page print:pt-6 mt-6">
                   <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs print:border print:border-black print:bg-white print:text-black">2</span> การวางแผนตาม 6 มิติการขับเคลื่อนคริสตจักร</h2>
                   
+                  {/* ใส่ break-inside-avoid ทุกมิติ เพื่อไม่ให้มิติโดนสับเละเทะข้ามหน้า */}
                   <div className="pl-4 print:break-inside-avoid">
                     <h3 className="font-bold text-gray-900 mb-3 text-base">1. มิติด้านการเจริญเติบโตด้านปริมาณ (Quantitative Growth)</h3>
                     <div className="pl-6 space-y-3">
@@ -633,7 +642,7 @@ export default function App() {
         {isAttModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 border border-white">
-               <div className="flex justify-between items-center border-b border-gray-100 pb-5 mb-6"><h2 className="text-2xl font-black text-gray-800 flex items-center gap-3"><span className="bg-orange-100 text-orange-600 p-2 rounded-xl">📊</span> กรอกสถิติสัปดาห์นี้</h2><button onClick={() => setIsAttModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition bg-gray-50 p-2 rounded-full"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
+              <div className="flex justify-between items-center border-b border-gray-100 pb-5 mb-6"><h2 className="text-2xl font-black text-gray-800 flex items-center gap-3"><span className="bg-orange-100 text-orange-600 p-2 rounded-xl">📊</span> กรอกสถิติสัปดาห์นี้</h2><button onClick={() => setIsAttModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition bg-gray-50 p-2 rounded-full"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
               <form onSubmit={handleSaveAttendance} className="space-y-6">
                 <div><label className="block text-sm font-bold text-gray-700 mb-2">วันที่ (วันอาทิตย์)</label><input type="date" required value={attForm.date} onChange={e => setAttForm({...attForm, date: e.target.value})} className="w-full border-2 border-gray-100 p-4 rounded-2xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition text-gray-700 font-medium" /></div>
                 <div><label className="block text-sm font-bold text-gray-700 mb-2">จำนวนคนมาร่วม (คน)</label><input type="number" required min="0" value={attForm.count} onChange={e => setAttForm({...attForm, count: e.target.value})} className="w-full border-2 border-gray-100 p-4 rounded-2xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-black text-lg text-orange-600" placeholder="ระบุจำนวนคน" /></div>
@@ -685,7 +694,7 @@ export default function App() {
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">กลุ่มเซลล์ (Cell)</label>
-                      <input type="text" list="cell-list" placeholder="เลือกหรือพิมพ์ชื่อเซลล์" value={memberForm.cell} onChange={e => setMemberForm({...memberForm, cell: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-medium text-blue-600" />
+                      <input type="text" list="cell-list" placeholder="เลือกหรือพิมพ์ชื่อเซลล์" value={memberForm.cell} onChange={e => setMemberForm({...memberForm, cell: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition font-medium text-blue-600" />
                       <datalist id="cell-list">{dynamicCells.map(c => <option key={c} value={c} />)}</datalist>
                     </div>
                 </div>
@@ -707,7 +716,7 @@ export default function App() {
         <div className="bg-white p-14 rounded-3xl shadow-2xl text-center max-w-lg w-full border border-white">
           <div className="text-7xl mb-6 transform animate-bounce">🎉</div>
           <h1 className="text-3xl font-black text-gray-800 mb-3">บันทึกแผนงานสำเร็จ!</h1>
-          <p className="text-gray-500 mb-10 font-bold text-lg">ข้อมูลแผนงานทั้งหมดถูกจัดเก็บบรราจุเข้าสู่ระบบอย่างปลอดภัยเรียบร้อยแล้วครับ</p>
+          <p className="text-gray-500 mb-10 font-bold text-lg">ข้อมูลแผนงานทั้งหมดถูกจัดเก็บเข้าสู่ระบบอย่างปลอดภัยเรียบร้อยแล้วครับ</p>
           <button onClick={() => { setCurrentView('dashboard') }} className="bg-gradient-to-r from-orange-500 to-rose-500 text-white w-full p-4 rounded-2xl font-black text-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
             กลับสู่หน้าแดชบอร์ด
           </button>
