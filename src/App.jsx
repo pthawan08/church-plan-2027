@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
-import { QRCodeSVG } from 'qrcode.react'
 
 export default function App() {
   const [currentView, setCurrentView] = useState('login')
@@ -59,6 +58,7 @@ export default function App() {
   const percentage = areaTarget && Number(areaTarget) > 0 ? Math.round((avgAttendance / Number(areaTarget)) * 100) : 0;
 
   const liveUrl = "https://church-plan-2027.vercel.app/"
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(liveUrl)}`
 
   const monthsQ3 = [
     { month: 'กรกฎาคม 2026', days: [{ date: '2026-07-05', label: 'อาทิตย์ 5 ก.ค.' }, { date: '2026-07-12', label: 'อาทิตย์ 12 ก.ค.' }, { date: '2026-07-19', label: 'อาทิตย์ 19 ก.ค.' }, { date: '2026-07-26', label: 'อาทิตย์ 26 ก.ค.' }] },
@@ -303,59 +303,12 @@ export default function App() {
     )
   }
 
-  // ✨ หน้า Dashboard ปกติ (แยกหน้าใช้งานในเว็บแบบเดิมเป๊ะๆ)
+  // ✨ หน้า Dashboard (พร้อม QR Code รูปภาพ API แสดงผลแน่นอน 100%)
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8">
         
-        {/* สำหรับโหมดปริ้น: จะรวบรวมทุกหน้ามาแสดงพร้อมกันเฉพาะตอนสั่งพิมพ์ */}
-        <div className="hidden print:block space-y-8">
-          
-          {/* หน้าที่ 1: แดชบอร์ด */}
-          <div className="print:break-after-page space-y-6">
-            <div className="flex flex-col border-b-2 border-orange-500 pb-4 mb-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h1 className="text-3xl font-black text-gray-900">รายงานข้อมูลและแผนงาน ปี 2027</h1>
-                  <p className="text-lg text-gray-600 font-bold mt-2">ระดับ{planningLevel === 'คริสตจักร' ? 'คริสตจักรแห่งนิมิตพิษณุโลก' : `${planningLevel}: ${selectedArea}`}</p>
-                  {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium">ผู้รับผิดชอบ: {userName}</p>}
-                </div>
-                <div className="flex items-center gap-4 bg-orange-50 p-3 rounded-2xl border border-orange-200">
-                  <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center p-1"><QRCodeSVG value={liveUrl} size={56} /></div>
-                  <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-xs">สแกนเพื่อจัดการข้อมูล</p></div>
-                </div>
-              </div>
-            </div>
-            {/* สรุปตัวเลข */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="border-2 border-rose-400 p-5 rounded-2xl text-center"><h3 className="font-bold text-rose-600">สมาชิกทั้งหมด</h3><p className="text-3xl font-black text-rose-700">{members.length} คน</p></div>
-              <div className="border-2 border-orange-400 p-5 rounded-2xl text-center"><h3 className="font-bold text-orange-600">หน่วยทั้งหมด</h3><p className="text-3xl font-black text-orange-700">{uniqueUnitCount} หน่วย</p></div>
-              <div className="border-2 border-teal-400 p-5 rounded-2xl text-center"><h3 className="font-bold text-teal-600">กลุ่มเซลล์ทั้งหมด</h3><p className="text-3xl font-black text-teal-700">{uniqueCellCount} กลุ่ม</p></div>
-            </div>
-          </div>
-
-          {/* หน้าที่ 2: รายชื่อสมาชิก */}
-          <div className="print:break-after-page space-y-6">
-            <h2 className="text-2xl font-black text-gray-800">👥 รายชื่อสมาชิกใน{planningLevel}</h2>
-            {sortedCells.map(cellName => (
-              <div key={cellName} className="border border-gray-400 rounded-2xl p-4 mb-4">
-                <h3 className="font-black text-gray-700 text-base mb-2">กลุ่ม: {cellName}</h3>
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead><tr className="border-b border-gray-300"><th className="p-2">ชื่อ-สกุล</th><th className="p-2">เบอร์โทร</th><th className="p-2">สถานะ</th></tr></thead>
-                  <tbody>
-                    {groupedMembers[cellName].map((m, i) => (
-                      <tr key={i} className="border-b border-gray-200"><td className="p-2 font-bold">{m['ชื่อ-สกุล']}</td><td className="p-2">{m['เบอร์โทร'] || '-'}</td><td className="p-2">{m['สถานะ']}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-
-        </div>
-
-        {/* 💻 หน้าจอใช้งานจริงบนเว็บ (แยกปุ่มกดปกติ) */}
-        <div className="max-w-6xl mx-auto space-y-6 print:hidden">
+        <div className="max-w-6xl mx-auto space-y-6">
           
           <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl shadow-sm border border-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
@@ -367,7 +320,9 @@ export default function App() {
             </div>
             <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
               <div className="flex items-center gap-4 bg-orange-50/50 p-2.5 px-4 rounded-2xl border-2 border-dashed border-orange-300 w-full md:w-auto">
-                <div className="flex items-center justify-center p-1 bg-white rounded-xl"><QRCodeSVG value={liveUrl} size={48} /></div>
+                <div className="flex items-center justify-center p-1 bg-white rounded-xl shadow-sm">
+                  <img src={qrImageUrl} alt="QR Code" className="w-12 h-12" />
+                </div>
                 <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-[11px]">สแกนเพื่อเปิดเว็บมือถือ</p></div>
               </div>
               <div className="flex gap-3 w-full md:w-auto">
