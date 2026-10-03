@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
+import { QRCodeSVG } from 'qrcode.react'
 
 export default function App() {
   const [currentView, setCurrentView] = useState('login')
@@ -56,6 +57,8 @@ export default function App() {
   const totalAttendance = attendanceData.reduce((sum, item) => sum + item.count, 0);
   const avgAttendance = attendanceData.length > 0 ? Math.round(totalAttendance / attendanceData.length) : 0;
   const percentage = areaTarget && Number(areaTarget) > 0 ? Math.round((avgAttendance / Number(areaTarget)) * 100) : 0;
+
+  const liveUrl = "https://church-plan-2027.vercel.app/"
 
   const monthsQ3 = [
     { month: 'กรกฎาคม 2026', days: [{ date: '2026-07-05', label: 'อาทิตย์ 5 ก.ค.' }, { date: '2026-07-12', label: 'อาทิตย์ 12 ก.ค.' }, { date: '2026-07-19', label: 'อาทิตย์ 19 ก.ค.' }, { date: '2026-07-26', label: 'อาทิตย์ 26 ก.ค.' }] },
@@ -301,7 +304,58 @@ export default function App() {
     )
   }
 
-  // ✨ หน้า Dashboard
+  if (currentView === 'adminBatchAttendance') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-orange-50 to-amber-100 p-4 md:p-8 flex flex-col items-center justify-center">
+        <div className="bg-white p-8 md:p-10 rounded-3xl shadow-2xl max-w-2xl w-full border border-white">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-black text-rose-600">🛠️ แอดมิน: กรอกสถิติย้อนหลัง (Q3)</h1>
+            <button onClick={() => setCurrentView('login')} className="text-gray-400 hover:text-gray-600 font-bold text-sm bg-gray-50 px-4 py-2 rounded-xl">✕ กลับหน้าแรก</button>
+          </div>
+          <form onSubmit={handleSaveAdminBatch} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">ระดับ</label>
+                <select value={adminAttLevel} onChange={e => { setAdminAttLevel(e.target.value); setAdminAttArea(''); }} className="w-full border-2 border-gray-100 p-3 rounded-xl font-bold text-gray-700">
+                  <option value="แขวง">ระดับแขวง</option>
+                  <option value="เขต">ระดับเขต</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">เลือก{adminAttLevel}</label>
+                <select value={adminAttArea} onChange={e => setAdminAttArea(e.target.value)} required className="w-full border-2 border-gray-100 p-3 rounded-xl font-bold text-orange-600 bg-white">
+                  <option value="">-- กรุณาเลือก --</option>
+                  {adminOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto space-y-6 pr-2 border-t border-b border-gray-100 py-4">
+              {monthsQ3.map(mGroup => (
+                <div key={mGroup.month} className="space-y-3">
+                  <h3 className="font-black text-orange-600 text-sm bg-orange-50 p-2 rounded-lg">{mGroup.month}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {mGroup.days.map(d => (
+                      <div key={d.date} className="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                        <span className="text-xs font-bold text-gray-600">{d.label}</span>
+                        <input type="number" min="0" placeholder="จำนวนคน" value={adminAttData[d.date] !== undefined ? adminAttData[d.date] : ''} onChange={e => setAdminAttData({...adminAttData, [d.date]: e.target.value})} className="w-24 border border-gray-200 p-1.5 rounded-lg text-center font-bold text-orange-600 bg-white" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button type="submit" disabled={isSavingAtt} className="w-full bg-gradient-to-r from-rose-500 to-orange-500 text-white p-4 rounded-2xl font-black text-lg hover:shadow-lg transition-all disabled:opacity-70">
+              {isSavingAtt ? 'กำลังบันทึกข้อมูล...' : '💾 บันทึกข้อมูลสถิติย้อนหลังทั้งหมด'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  // ✨ หน้า Dashboard (รวมทุกอย่างไว้ที่นี่เพื่อปริ้นออกรวดเดียว)
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8 relative print:bg-white print:bg-none print:p-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
@@ -309,43 +363,44 @@ export default function App() {
         {/* --- 📄 หน้าที่ 1: แดชบอร์ดสรุปสถิติ --- */}
         <div className="max-w-6xl mx-auto space-y-6 print:space-y-6">
           
-          <div className="hidden print:flex flex-col border-b-2 border-orange-500 pb-4 mb-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-3xl font-black text-gray-900">รายงานข้อมูลและแผนงาน ปี 2027</h1>
-                <p className="text-lg text-gray-600 font-bold mt-2">ระดับ{planningLevel === 'คริสตจักร' ? 'คริสตจักรแห่งนิมิตพิษณุโลก' : `${planningLevel}: ${selectedArea}`}</p>
-                {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium">ผู้รับผิดชอบ: {userName}</p>}
+          {/* Header เฉพาะตอน Print */}
+          <div className="hidden print:flex justify-between items-center border-b-2 border-orange-500 pb-6 mb-6">
+            <div>
+              <h1 className="text-4xl font-black text-gray-900">รายงานข้อมูลและแผนงาน ปี 2027</h1>
+              <p className="text-xl text-gray-600 font-bold mt-2">ระดับ{planningLevel === 'คริสตจักร' ? 'คริสตจักรแห่งนิมิตพิษณุโลก' : `${planningLevel}: ${selectedArea}`}</p>
+              {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium mt-1">ผู้รับผิดชอบ: {userName}</p>}
+            </div>
+            <div className="flex items-center gap-4 bg-orange-50 p-4 rounded-3xl border border-orange-200">
+              {/* ✨ ขยาย QR Code ให้ใหญ่ชัดเจนตอนปริ้น (size=120) */}
+              <div className="bg-white p-2 rounded-2xl shadow-sm border border-orange-100">
+                <QRCodeSVG value={liveUrl} size={120} />
               </div>
-              <div className="flex items-center gap-4 bg-orange-50 p-3 rounded-2xl border border-orange-200">
-                {/* ✨ ปรับขนาด QR Code หน้า Print ให้ใหญ่ขึ้น (w-24 h-24) */}
-                <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-orange-400 overflow-hidden">
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://church-plan-2027.vercel.app/" alt="QR Code" className="w-full h-full object-cover" />
-                </div>
-                <div className="text-base"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-sm">สแกนเพื่อจัดการข้อมูล</p></div>
+              <div>
+                <p className="font-black text-gray-800 text-lg">ระบบฐานข้อมูล 2027</p>
+                <p className="text-gray-500 font-medium text-sm">สแกนเพื่อจัดการข้อมูล</p>
               </div>
             </div>
           </div>
 
+          {/* Header หน้าจอปกติ */}
           <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl shadow-sm border border-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
             <div>
               {planningLevel === 'คริสตจักร' ? (
-                <><h1 className="text-2xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-rose-600 print:text-orange-700">รายงานภาพรวมคริสตจักร</h1></>
+                <h1 className="text-2xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-rose-600">รายงานภาพรวมคริสตจักร</h1>
               ) : (
                 <><h1 className="text-2xl md:text-3xl font-black text-gray-900">ระดับ{planningLevel}: <span className="text-gray-900">{selectedArea}</span></h1><p className="text-gray-600 font-bold mt-1">ผู้รับผิดชอบ: <span className="text-rose-600">{userName}</span></p></>
               )}
             </div>
             <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
               <div className="flex items-center gap-4 bg-orange-50/50 p-2.5 px-4 rounded-2xl border-2 border-dashed border-orange-300 w-full md:w-auto">
-                {/* ✨ ปรับขนาด QR Code หน้าจอให้ใหญ่ขึ้นนิดนึง (w-12 h-12) */}
-                <div className="flex items-center justify-center w-12 h-12 bg-white rounded-lg overflow-hidden border border-orange-200">
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://church-plan-2027.vercel.app/" alt="QR Code" className="w-full h-full object-cover" />
+                <div className="bg-white p-1 rounded-xl shadow-sm border border-orange-100">
+                  <QRCodeSVG value={liveUrl} size={48} />
                 </div>
-                <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-[11px]">สแกนเพื่อจัดการข้อมูลออนไลน์</p></div>
+                <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-[11px]">สแกนเพื่อเปิดเว็บมือถือ</p></div>
               </div>
-              <div className="flex gap-3 w-full md:w-auto print:hidden">
+              <div className="flex gap-3 w-full md:w-auto">
                 <button onClick={() => window.print()} className="flex-1 md:flex-none text-orange-700 bg-orange-100 hover:bg-orange-200 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                  ปริ้นรายงานชุดสมบูรณ์
+                  🖨️ ปริ้นรายงานชุดสมบูรณ์
                 </button>
                 <button onClick={() => {setCurrentView('login'); setSelectedArea(''); setUserName('');}} className="text-rose-600 bg-rose-50 hover:bg-rose-100 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center">ออกจากระบบ</button>
               </div>
@@ -385,17 +440,17 @@ export default function App() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3">
-                  <span className="bg-white border border-gray-100 shadow-sm p-2 rounded-xl text-xl print:border-none print:p-0">📊</span>
+                  <span className="bg-white border shadow-sm p-2 rounded-xl text-xl print:border-none print:p-0">📊</span>
                   <h2 className="text-2xl font-black text-gray-800">สถิติการมาร่วม</h2>
                 </div>
                 {planningLevel !== 'คริสตจักร' && (
-                  <button onClick={() => setIsAttModalOpen(true)} className="print:hidden bg-gradient-to-r from-orange-400 to-orange-500 text-white px-4 py-2 rounded-full font-bold text-sm shadow-sm hover:shadow-md transition-all flex items-center gap-1">+ กรอกสถิติสัปดาห์นี้</button>
+                  <button onClick={() => setIsAttModalOpen(true)} className="print:hidden bg-gradient-to-r from-orange-400 to-orange-500 text-white px-4 py-2 rounded-full font-bold text-sm shadow-sm hover:shadow-md transition-all">+ กรอกสถิติสัปดาห์นี้</button>
                 )}
               </div>
               <div className="text-right mt-4 md:mt-0 print:mt-0">
                 <div className="flex items-center justify-end gap-3 mb-2">
                   <p className="text-gray-700 font-bold text-base">เป้าหมายไตรมาส 3 :</p>
-                  <input type="number" placeholder="ระบุเป้า" className="w-16 border-b-2 border-orange-300 text-center text-orange-600 font-black text-xl focus:outline-none focus:border-rose-500 bg-transparent transition-colors print:border-none" value={areaTarget} onChange={(e) => { setAreaTarget(e.target.value); const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea; localStorage.setItem('target_' + areaKey, e.target.value); }} />
+                  <input type="number" placeholder="ระบุเป้า" className="w-16 border-b-2 border-orange-300 text-center text-orange-600 font-black text-xl focus:outline-none bg-transparent print:border-none" value={areaTarget} onChange={(e) => { setAreaTarget(e.target.value); const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea; localStorage.setItem('target_' + areaKey, e.target.value); }} />
                 </div>
                 <div className="flex items-center justify-end gap-3">
                   <p className="text-gray-700 font-bold text-sm md:text-base">ค่าเฉลี่ย : <span className="text-green-500 font-black text-lg">{avgAttendance}</span></p>
@@ -404,18 +459,17 @@ export default function App() {
               </div>
             </div>
             
-            {/* ✨ แก้ไขกราฟ: เพิ่มความสูงกราฟ และปรับ margin ให้ตัวอักษรแกน X ไม่ตกขอบ */}
-            <div className="h-[350px] w-full mt-4 print:h-[320px]">
+            {/* ✨ ปรับความสูงกราฟ และเพิ่ม margin ล่างให้ตัวอักษรไม่ตกขอบ (bottom: 80) */}
+            <div className="h-[450px] w-full mt-4 print:h-[400px]">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  {/* ✨ แก้ไข margin ตรงนี้: bottom: 65, right: 20 */}
-                  <BarChart data={attendanceData} margin={{ top: 25, right: 20, left: -20, bottom: 65 }}>
+                  <BarChart data={attendanceData} margin={{ top: 30, right: 20, left: -20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 11, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 12, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
                     <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={40}>
-                      <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={12} offset={10} />
+                      <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={14} offset={10} />
                     </Bar>
                     <defs>
                       <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
@@ -480,22 +534,22 @@ export default function App() {
           )}
         </div>
 
-        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ (บังคับให้เริ่มหน้าใหม่เสมอ) --- */}
-        <div className="max-w-5xl mx-auto print:break-before-page">
+        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ (กลับมาอยู่ในหน้าเดียวแล้ว!) --- */}
+        <div className="max-w-5xl mx-auto print:break-before-page mt-12 print:mt-8">
           {planningLevel !== 'คริสตจักร' && (
-            <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 mt-12 print:shadow-none print:border-none print:p-0 print:mt-0 print:pt-4">
+            <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
               
               <form onSubmit={handleSavePlan} className="text-gray-900">
                 
-                {/* ✨ มัดรวม กล่อง KPI + ตารางเป้าหมาย ให้อยู่หน้าเดียวกันเสมอ (กันการโดนเบราว์เซอร์ตัดขาดครึ่ง) */}
                 <div className="print:break-inside-avoid pb-4">
                   
-                  <div className="mb-12 pb-8 border-b-2 border-orange-200 print:hidden">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-8 tracking-tight">แบบฟอร์มวางแผนรับใช้ ประจำปี 2027</h1>
+                  {/* หัวฟอร์ม 6 มิติ (โชว์บนจอด้วย) */}
+                  <div className="mb-12 pb-8 border-b-2 border-orange-200">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-8 tracking-tight">แบบฟอร์มวางแผนรับใช้ 6 มิติ (ปี 2027)</h1>
                     <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><span className="bg-orange-300 w-2 h-6 rounded-full inline-block"></span>ข้อมูล{planningLevel}และผู้รับผิดชอบ</h3>
                     <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-12 text-lg font-medium text-gray-800">
                       <div className="flex items-end gap-3 w-full md:w-auto"><span className="whitespace-nowrap">ชื่อ{planningLevel}:</span><span className="border-b-2 border-dotted border-orange-300 flex-1 md:w-64 text-center font-bold text-orange-600 pb-1 px-4">{selectedArea}</span></div>
-                      <div className="flex items-end gap-3 w-full md:w-auto"><span className="whitespace-nowrap">ชื่อหัวหน้า{planningLevel}:</span><span className="border-b-2 border-dotted border-orange-300 flex-1 md:w-80 text-center font-bold text-orange-600 pb-1 px-4">{userName}</span></div>
+                      <div className="flex items-end gap-3 w-full md:w-auto"><span className="whitespace-nowrap">ผู้รับผิดชอบ:</span><span className="border-b-2 border-dotted border-orange-300 flex-1 md:w-80 text-center font-bold text-orange-600 pb-1 px-4">{userName}</span></div>
                     </div>
                   </div>
 
@@ -551,11 +605,9 @@ export default function App() {
 
                 </div>
 
-                {/* ✨ เปลี่ยนช่องกรอกข้อความยาวๆ เป็นกล่องเส้นประทั้งหมดให้ดูน่าพิมพ์ */}
                 <div className="space-y-8 pt-8 text-[1.05rem] leading-relaxed text-gray-800 print:break-before-page print:pt-6 mt-6">
                   <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs print:border print:border-black print:bg-white print:text-black">2</span> การวางแผนตาม 6 มิติการขับเคลื่อนคริสตจักร</h2>
                   
-                  {/* ใส่ break-inside-avoid ทุกมิติ เพื่อไม่ให้มิติโดนสับเละเทะข้ามหน้า */}
                   <div className="pl-4 print:break-inside-avoid">
                     <h3 className="font-bold text-gray-900 mb-3 text-base">1. มิติด้านการเจริญเติบโตด้านปริมาณ (Quantitative Growth)</h3>
                     <div className="pl-6 space-y-3">
@@ -716,7 +768,7 @@ export default function App() {
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">กลุ่มเซลล์ (Cell)</label>
-                      <input type="text" list="cell-list" placeholder="เลือกหรือพิมพ์ชื่อเซลล์" value={memberForm.cell} onChange={e => setMemberForm({...memberForm, cell: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition font-medium text-blue-600" />
+                      <input type="text" list="cell-list" placeholder="เลือกหรือพิมพ์ชื่อเซลล์" value={memberForm.cell} onChange={e => setMemberForm({...memberForm, cell: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-medium text-blue-600" />
                       <datalist id="cell-list">{dynamicCells.map(c => <option key={c} value={c} />)}</datalist>
                     </div>
                 </div>
