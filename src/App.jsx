@@ -471,7 +471,7 @@ export default function App() {
             )}
           </div>
 
-          {/* ✨ เพิ่มส่วนสรุปภาพรวม 4 ด้าน (แสดงเฉพาะระดับคริสตจักร) */}
+          {/* ✨ เพิ่มส่วนสรุปภาพรวม 4 ด้าน (แสดงเฉพาะระดับคริสตจักร) มาชัวร์ๆ รอบนี้! */}
           {planningLevel === 'คริสตจักร' && (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200 mt-6">
               <div className="text-center mb-8">
