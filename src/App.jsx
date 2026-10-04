@@ -473,59 +473,57 @@ export default function App() {
 
           {/* ✨ เพิ่มส่วนสรุปภาพรวม 4 ด้าน (แสดงเฉพาะระดับคริสตจักร) */}
           {planningLevel === 'คริสตจักร' && (
-            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
-                  <span className="bg-orange-100 text-orange-600 p-2.5 rounded-xl print:bg-white print:border print:border-orange-200">⛪</span> 
-                  สรุปภาพรวมคริสตจักรแห่งนิมิตพิษณุโลก
-                </h2>
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200 mt-6">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl md:text-3xl font-black text-amber-800">สรุปภาพรวมคริสตจักรแห่งนิมิตพิษณุโลก</h2>
+                <p className="text-lg font-bold text-amber-600 mt-1">เดือน มีนาคม - พฤษภาคม 26</p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 print:gap-6 mt-12">
                 {/* กล่องที่ 1: คริสตจักร (CH) */}
-                <div className="bg-orange-50/50 border-2 border-orange-100 rounded-3xl p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-sm print:border-orange-300">
-                  <div className="text-6xl bg-white p-4 rounded-full shadow-sm print:border print:border-orange-200">⛪</div>
-                  <div className="text-center sm:text-left">
-                    <h3 className="text-xl font-black text-orange-800">คริสตจักร (CH)</h3>
-                    <p className="text-4xl font-black text-orange-600 my-2">584 <span className="text-sm font-bold text-orange-500">คน/สัปดาห์</span></p>
-                    <p className="text-xs font-bold text-orange-700 bg-orange-100 py-1.5 px-3 rounded-full inline-block print:border print:border-orange-200">คิดเป็น 97% ของเป้าหมายหรือจำนวนสมาชิกทั้งหมด</p>
-                  </div>
+                <div className="bg-[#fef3c7] rounded-3xl p-6 flex flex-col items-center text-center shadow-sm print:border print:border-amber-200">
+                  <h3 className="bg-[#d97706] text-white px-6 py-2 rounded-full text-xl font-black shadow-md -mt-10 mb-4 border-4 border-white">คริสตจักร (CH)</h3>
+                  <div className="text-6xl mb-2">⛪</div>
+                  <p className="text-lg font-bold text-amber-900">เฉลี่ย</p>
+                  <p className="text-5xl font-black text-[#b45309] my-1">584</p>
+                  <p className="text-lg font-bold text-amber-900 mb-4">คน/สัปดาห์</p>
+                  <p className="text-sm font-bold text-amber-800 bg-[#fde68a] py-2 px-4 rounded-xl w-full">คิดเป็น 97% ของเป้าหมาย หรือจำนวนสมาชิกทั้งหมด</p>
                 </div>
 
                 {/* กล่องที่ 2: เซลล์ (CELL) */}
-                <div className="bg-emerald-50/50 border-2 border-emerald-100 rounded-3xl p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-sm print:border-emerald-300">
-                  <div className="text-6xl bg-white p-4 rounded-full shadow-sm print:border print:border-emerald-200">🏘️</div>
-                  <div className="text-center sm:text-left">
-                    <h3 className="text-xl font-black text-emerald-800">เซลล์ (CELL)</h3>
-                    <p className="text-4xl font-black text-emerald-600 my-2">356 <span className="text-sm font-bold text-emerald-500">คน/สัปดาห์</span></p>
-                    <p className="text-xs font-bold text-emerald-700 bg-emerald-100 py-1.5 px-3 rounded-full inline-block print:border print:border-emerald-200">คิดเป็น 59% ของสมาชิก</p>
-                  </div>
+                <div className="bg-[#ffedd5] rounded-3xl p-6 flex flex-col items-center text-center shadow-sm print:border print:border-orange-200">
+                  <h3 className="bg-[#ea580c] text-white px-6 py-2 rounded-full text-xl font-black shadow-md -mt-10 mb-4 border-4 border-white">เซลล์ (CELL)</h3>
+                  <div className="text-6xl mb-2">🏘️</div>
+                  <p className="text-lg font-bold text-orange-900">เฉลี่ย</p>
+                  <p className="text-5xl font-black text-[#c2410c] my-1">356</p>
+                  <p className="text-lg font-bold text-orange-900 mb-4">คน/สัปดาห์</p>
+                  <p className="text-sm font-bold text-orange-800 bg-[#fed7aa] py-2 px-4 rounded-xl w-full">คิดเป็น 59% ของสมาชิก</p>
                 </div>
 
                 {/* กล่องที่ 3: พพช. (SBC) */}
-                <div className="bg-amber-50/50 border-2 border-amber-100 rounded-3xl p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-sm print:border-amber-300">
-                  <div className="text-6xl bg-white p-4 rounded-full shadow-sm print:border print:border-amber-200">📖</div>
-                  <div className="text-center sm:text-left">
-                    <h3 className="text-xl font-black text-amber-800">พพช. (SBC)</h3>
-                    <p className="text-4xl font-black text-amber-600 my-2">144 <span className="text-sm font-bold text-amber-500">คน/สัปดาห์</span></p>
-                    <p className="text-xs font-bold text-amber-700 bg-amber-100 py-1.5 px-3 rounded-xl inline-block leading-relaxed print:border print:border-amber-200">คิดเป็น 24% ของการมีส่วนร่วมในการเรียนรู้และฝึกฝนตามหลักสูตรของคริสตจักร</p>
-                  </div>
+                <div className="bg-[#ffedd5] rounded-3xl p-6 flex flex-col items-center text-center shadow-sm print:border print:border-orange-200 mt-4 md:mt-0 print:mt-4">
+                  <h3 className="bg-[#ea580c] text-white px-6 py-2 rounded-full text-xl font-black shadow-md -mt-10 mb-4 border-4 border-white">พพช. (SBC)</h3>
+                  <div className="text-6xl mb-2">📖</div>
+                  <p className="text-lg font-bold text-orange-900">เฉลี่ย</p>
+                  <p className="text-5xl font-black text-[#c2410c] my-1">144</p>
+                  <p className="text-lg font-bold text-orange-900 mb-4">คน/สัปดาห์</p>
+                  <p className="text-sm font-bold text-orange-800 bg-[#fed7aa] py-2 px-4 rounded-xl w-full">คิดเป็น 24% ของการมีส่วนร่วมในการเรียนรู้และฝึกฝนตามหลักสูตรของคริสตจักร</p>
                 </div>
 
                 {/* กล่องที่ 4: การเลี้ยงดู (1:1) */}
-                <div className="bg-teal-50/50 border-2 border-teal-100 rounded-3xl p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6 shadow-sm print:border-teal-300">
-                  <div className="text-6xl bg-white p-4 rounded-full shadow-sm print:border print:border-teal-200">🌱</div>
-                  <div className="text-center sm:text-left">
-                    <h3 className="text-xl font-black text-teal-800">การเลี้ยงดู (1:1)</h3>
-                    <p className="text-4xl font-black text-teal-600 my-2">204 <span className="text-sm font-bold text-teal-500">คน/สัปดาห์</span></p>
-                    <p className="text-xs font-bold text-teal-700 bg-teal-100 py-1.5 px-3 rounded-full inline-block print:border print:border-teal-200">คิดเป็น 34% ของการสร้างสาวกแบบส่วนตัว</p>
-                  </div>
+                <div className="bg-[#ecfccb] rounded-3xl p-6 flex flex-col items-center text-center shadow-sm print:border print:border-lime-200 mt-4 md:mt-0 print:mt-4">
+                  <h3 className="bg-[#65a30d] text-white px-6 py-2 rounded-full text-xl font-black shadow-md -mt-10 mb-4 border-4 border-white">การเลี้ยงดู (1:1)</h3>
+                  <div className="text-6xl mb-2">🌱</div>
+                  <p className="text-lg font-bold text-lime-900">เฉลี่ย</p>
+                  <p className="text-5xl font-black text-[#4d7c0f] my-1">204</p>
+                  <p className="text-lg font-bold text-lime-900 mb-4">คน/สัปดาห์</p>
+                  <p className="text-sm font-bold text-lime-800 bg-[#d9f99d] py-2 px-4 rounded-xl w-full">คิดเป็น 34% ของการสร้างสาวกแบบส่วนตัว</p>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200">
+          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200 mt-6 print:break-before-page">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3">
@@ -553,7 +551,7 @@ export default function App() {
               </div>
             </div>
             
-            <div className="h-[450px] w-full mt-4 print:h-[280px] print:break-inside-avoid">
+            <div className="h-[450px] w-full mt-4 print:h-[300px] print:break-inside-avoid">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
@@ -588,7 +586,7 @@ export default function App() {
         </div>
 
         {/* --- 📄 หน้าที่ 2: ตารางรายชื่อสมาชิก --- */}
-        <div className="max-w-6xl mx-auto print:mt-8 print:break-before-page print:max-w-full print:w-full print:px-0">
+        <div className="max-w-6xl mx-auto print:mt-8 print:break-before-page">
           {planningLevel === 'คริสตจักร' ? (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-none print:px-0">
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3 mb-6"><span className="bg-purple-100 text-purple-600 p-2.5 rounded-xl print:bg-white print:border print:border-purple-200">📈</span> สรุปข้อมูลแยกตามเขต</h2>
@@ -675,7 +673,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <h2 className="text-xl print:text-2xl font-bold mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm print:border print:border-black print:bg-white print:text-black">1</span> เป้าหมายตัวเลขของ{planningLevel}ในปี 2027</h2>
+                    <h2 className="text-xl print:text-2xl font-bold mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 print:w-10 print:h-10 rounded-full flex items-center justify-center text-sm print:text-xl print:border print:border-black print:bg-white print:text-black">1</span> เป้าหมายตัวเลขของ{planningLevel}ในปี 2027</h2>
                     <div className="overflow-x-auto rounded-xl border border-orange-200 bg-white">
                       <table className="w-full border-collapse text-base print:text-lg">
                         <thead>
