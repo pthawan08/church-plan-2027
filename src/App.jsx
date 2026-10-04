@@ -396,6 +396,10 @@ export default function App() {
               min-width: 100% !important; 
               zoom: 100% !important;
             }
+            /* บังคับตัวอักษรใหญ่ขึ้นอีกนิดเผื่อไว้ */
+            .print-enlarge-text { font-size: 16pt !important; }
+            .print-enlarge-text h2 { font-size: 20pt !important; margin-bottom: 20px !important; }
+            .print-enlarge-text h3 { font-size: 18pt !important; }
           }
         `}</style>
 
@@ -471,16 +475,15 @@ export default function App() {
             )}
           </div>
 
-          {/* ✨ เพิ่มส่วนสรุปภาพรวม 4 ด้าน (แสดงเฉพาะระดับคริสตจักร) มาชัวร์ๆ รอบนี้! */}
+          {/* ✨ นี่ไงครับ! กล่อง 4 เสาหลัก (CH, CELL, SBC, 1:1) โชว์เฉพาะตอนเลือก 'คริสตจักร' */}
           {planningLevel === 'คริสตจักร' && (
-            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200 mt-6">
-              <div className="text-center mb-8">
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200 mt-6 print:break-inside-avoid">
+              <div className="text-center mb-8 print:mb-6">
                 <h2 className="text-2xl md:text-3xl font-black text-amber-800">สรุปภาพรวมคริสตจักรแห่งนิมิตพิษณุโลก</h2>
                 <p className="text-lg font-bold text-amber-600 mt-1">เดือน มีนาคม - พฤษภาคม 26</p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 print:gap-6 mt-12">
-                {/* กล่องที่ 1: คริสตจักร (CH) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 print:gap-6 mt-12 print:mt-10">
                 <div className="bg-[#fef3c7] rounded-3xl p-6 flex flex-col items-center text-center shadow-sm print:border print:border-amber-200">
                   <h3 className="bg-[#d97706] text-white px-6 py-2 rounded-full text-xl font-black shadow-md -mt-10 mb-4 border-4 border-white">คริสตจักร (CH)</h3>
                   <div className="text-6xl mb-2">⛪</div>
@@ -489,8 +492,6 @@ export default function App() {
                   <p className="text-lg font-bold text-amber-900 mb-4">คน/สัปดาห์</p>
                   <p className="text-sm font-bold text-amber-800 bg-[#fde68a] py-2 px-4 rounded-xl w-full">คิดเป็น 97% ของเป้าหมาย หรือจำนวนสมาชิกทั้งหมด</p>
                 </div>
-
-                {/* กล่องที่ 2: เซลล์ (CELL) */}
                 <div className="bg-[#ffedd5] rounded-3xl p-6 flex flex-col items-center text-center shadow-sm print:border print:border-orange-200">
                   <h3 className="bg-[#ea580c] text-white px-6 py-2 rounded-full text-xl font-black shadow-md -mt-10 mb-4 border-4 border-white">เซลล์ (CELL)</h3>
                   <div className="text-6xl mb-2">🏘️</div>
@@ -499,18 +500,14 @@ export default function App() {
                   <p className="text-lg font-bold text-orange-900 mb-4">คน/สัปดาห์</p>
                   <p className="text-sm font-bold text-orange-800 bg-[#fed7aa] py-2 px-4 rounded-xl w-full">คิดเป็น 59% ของสมาชิก</p>
                 </div>
-
-                {/* กล่องที่ 3: พพช. (SBC) */}
                 <div className="bg-[#ffedd5] rounded-3xl p-6 flex flex-col items-center text-center shadow-sm print:border print:border-orange-200 mt-4 md:mt-0 print:mt-4">
                   <h3 className="bg-[#ea580c] text-white px-6 py-2 rounded-full text-xl font-black shadow-md -mt-10 mb-4 border-4 border-white">พพช. (SBC)</h3>
                   <div className="text-6xl mb-2">📖</div>
                   <p className="text-lg font-bold text-orange-900">เฉลี่ย</p>
                   <p className="text-5xl font-black text-[#c2410c] my-1">144</p>
                   <p className="text-lg font-bold text-orange-900 mb-4">คน/สัปดาห์</p>
-                  <p className="text-sm font-bold text-orange-800 bg-[#fed7aa] py-2 px-4 rounded-xl w-full">คิดเป็น 24% ของการมีส่วนร่วมในการเรียนรู้และฝึกฝนตามหลักสูตรของคริสตจักร</p>
+                  <p className="text-sm font-bold text-orange-800 bg-[#fed7aa] py-2 px-4 rounded-xl w-full">คิดเป็น 24% ของการมีส่วนร่วมในการเรียนรู้และฝึกฝน</p>
                 </div>
-
-                {/* กล่องที่ 4: การเลี้ยงดู (1:1) */}
                 <div className="bg-[#ecfccb] rounded-3xl p-6 flex flex-col items-center text-center shadow-sm print:border print:border-lime-200 mt-4 md:mt-0 print:mt-4">
                   <h3 className="bg-[#65a30d] text-white px-6 py-2 rounded-full text-xl font-black shadow-md -mt-10 mb-4 border-4 border-white">การเลี้ยงดู (1:1)</h3>
                   <div className="text-6xl mb-2">🌱</div>
@@ -634,7 +631,7 @@ export default function App() {
         </div>
 
         {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ --- */}
-        <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0">
+        <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0 print-enlarge-text">
           {planningLevel !== 'คริสตจักร' && (
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
               
@@ -667,33 +664,33 @@ export default function App() {
                       <div className="bg-[#f8fafc] py-3 px-2 rounded-xl border border-gray-200"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">พันธกิจใหม่</p><p className="text-xl md:text-2xl font-black text-slate-800">5-10 <span className="text-sm font-bold text-slate-600">พันธกิจ</span></p></div>
                     </div>
                     <div className="mt-4 bg-[#fff7ed] border border-[#fed7aa] py-3 px-5 rounded-xl flex flex-col md:flex-row justify-center items-center gap-4">
-                      <p className="text-[#9a3412] font-black text-lg md:text-xl print:text-2xl italic">" 50% ของ 1,000 คน เป็นทีมผู้นำ "</p>
-                      <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-[#ffedd5]"><p className="text-[#c2410c] font-bold text-base md:text-lg print:text-xl">80%+ เข้าร่วมโปรแกรมอธิษฐาน</p></div>
+                      <p className="text-[#9a3412] font-black text-lg md:text-xl print:text-xl italic">" 50% ของ 1,000 คน เป็นทีมผู้นำ "</p>
+                      <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-[#ffedd5]"><p className="text-[#c2410c] font-bold text-base md:text-lg print:text-lg">80%+ เข้าร่วมโปรแกรมอธิษฐาน</p></div>
                     </div>
                   </div>
 
                   <div>
-                    <h2 className="text-xl print:text-2xl font-bold mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 print:w-10 print:h-10 rounded-full flex items-center justify-center text-sm print:text-xl print:border print:border-black print:bg-white print:text-black">1</span> เป้าหมายตัวเลขของ{planningLevel}ในปี 2027</h2>
+                    <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm print:border print:border-black print:bg-white print:text-black">1</span> เป้าหมายตัวเลขของ{planningLevel}ในปี 2027</h2>
                     <div className="overflow-x-auto rounded-xl border border-orange-200 bg-white">
-                      <table className="w-full border-collapse text-base print:text-lg">
+                      <table className="w-full border-collapse text-base">
                         <thead>
-                          <tr className="bg-orange-100/60 text-[#c2410c] border-b border-orange-200 print:border-gray-400 print:text-black"><th className="p-3 print:p-4 text-left w-1/3 font-bold border-r border-orange-200 print:border-gray-400">รายการเป้าหมาย</th><th className="p-3 print:p-4 text-center w-1/3 font-bold border-r border-orange-200 print:border-gray-400">สภาพปัจจุบัน</th><th className="p-3 print:p-4 text-left w-1/3 font-bold">เป้าหมายปี 2027</th></tr>
+                          <tr className="bg-orange-100/60 text-[#c2410c] border-b border-orange-200 print:border-gray-400 print:text-black"><th className="p-3 text-left w-1/3 font-bold border-r border-orange-200 print:border-gray-400">รายการเป้าหมาย</th><th className="p-3 text-center w-1/3 font-bold border-r border-orange-200 print:border-gray-400">สภาพปัจจุบัน</th><th className="p-3 text-left w-1/3 font-bold">เป้าหมายปี 2027</th></tr>
                         </thead>
                         <tbody>
                           <tr className="border-b border-orange-200 print:border-gray-400">
-                            <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400">จำนวนสมาชิกใน{planningLevel}</td>
-                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">{members.length} คน</td>
-                            <td className="p-3 print:p-4 bg-white"><div className="flex items-end gap-2"><input type="number" {...b('t_mem')} className="w-24 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
+                            <td className="p-3 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400">จำนวนสมาชิกใน{planningLevel}</td>
+                            <td className="p-3 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">{members.length} คน</td>
+                            <td className="p-3 bg-white"><div className="flex items-end gap-2"><input type="number" {...b('t_mem')} className="w-24 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
                           </tr>
                           <tr className="border-b border-orange-200 print:border-gray-400">
-                            <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400">จำนวนกลุ่มเซลล์</td>
-                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">{uniqueCellCount} กลุ่ม</td>
-                            <td className="p-3 print:p-4 bg-white"><div className="flex items-end gap-2"><span className="font-bold text-gray-800 pb-1">ขยายใหม่</span><input type="number" {...b('t_cell')} className="w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">กลุ่ม</span></div></td>
+                            <td className="p-3 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400">จำนวนกลุ่มเซลล์</td>
+                            <td className="p-3 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">{uniqueCellCount} กลุ่ม</td>
+                            <td className="p-3 bg-white"><div className="flex items-end gap-2"><span className="font-bold text-gray-800 pb-1">ขยายใหม่</span><input type="number" {...b('t_cell')} className="w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">กลุ่ม</span></div></td>
                           </tr>
                           <tr>
-                            <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400 align-top">การสร้างและพัฒนาผู้นำใหม่</td>
-                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium align-top"><div className="space-y-4"><div><span className="font-bold text-lg print:text-xl">{currentCellLeadersCount}</span> คน <span className="text-sm text-gray-500">(หนซ.)</span></div><div><span className="font-bold text-lg print:text-xl">{currentMentorCount}</span> คน <span className="text-sm text-gray-500">(พี่เลี้ยง)</span></div></div></td>
-                            <td className="p-3 print:p-4 space-y-4 py-4 align-top bg-white"><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">หัวหน้าเซลล์ใหม่</span><input type="number" {...b('t_lead')} className="w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">คน</span></div><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">พี่เลี้ยงใหม่</span><input type="number" {...b('t_men')} className="w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
+                            <td className="p-3 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400 align-top">การสร้างและพัฒนาผู้นำใหม่</td>
+                            <td className="p-3 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium align-top"><div className="space-y-4"><div><span className="font-bold text-lg">{currentCellLeadersCount}</span> คน <span className="text-sm text-gray-500">(หนซ.)</span></div><div><span className="font-bold text-lg">{currentMentorCount}</span> คน <span className="text-sm text-gray-500">(พี่เลี้ยง)</span></div></div></td>
+                            <td className="p-3 space-y-4 py-4 align-top bg-white"><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">หัวหน้าเซลล์ใหม่</span><input type="number" {...b('t_lead')} className="w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">คน</span></div><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">พี่เลี้ยงใหม่</span><input type="number" {...b('t_men')} className="w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
                           </tr>
                         </tbody>
                       </table>
@@ -702,98 +699,98 @@ export default function App() {
 
                 </div>
 
-                <div className="space-y-8 print:space-y-10 pt-8 text-[1.05rem] leading-relaxed text-gray-800 print:break-before-page print:pt-8 mt-6">
-                  <h2 className="text-xl print:text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm print:border print:border-black print:bg-white print:text-black">2</span> การวางแผนตาม 6 มิติการขับเคลื่อนคริสตจักร</h2>
+                <div className="space-y-8 pt-8 text-[1.05rem] leading-relaxed text-gray-800 print:break-before-page print:pt-8 mt-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm print:border print:border-black print:bg-white print:text-black">2</span> การวางแผนตาม 6 มิติการขับเคลื่อนคริสตจักร</h2>
                   
                   <div className="pl-4">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">1. มิติด้านการเจริญเติบโตด้านปริมาณ (Quantitative Growth)</h3>
-                    <div className="pl-6 space-y-3 print:space-y-4">
-                      <div className="flex flex-wrap items-end gap-2"><span className="pb-1 text-base print:text-lg">1.1. เป้าหมายจำนวนสมาชิกใน{planningLevel}ที่เพิ่มขึ้นในปี 2027:</span><input type="number" {...b('d1_1')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg">คน</span></div>
-                      <div className="flex flex-wrap items-end gap-2"><span className="pb-1 text-base print:text-lg">1.2. เป้าหมายการนำคนรับเชื่อใหม่:</span><input type="number" {...b('d1_2')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg">คน</span></div>
-                      <div className="pt-2"><span className="block mb-2 text-base print:text-lg font-bold">1.3. แผนการประกาศและนำวิญญาณ:</span><textarea {...b('d1_3')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg"></textarea></div>
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">1. มิติด้านการเจริญเติบโตด้านปริมาณ (Quantitative Growth)</h3>
+                    <div className="pl-6 space-y-3">
+                      <div className="flex flex-wrap items-end gap-2"><span className="pb-1 text-base">1.1. เป้าหมายจำนวนสมาชิกใน{planningLevel}ที่เพิ่มขึ้นในปี 2027:</span><input type="number" {...b('d1_1')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /><span className="pb-1 text-base">คน</span></div>
+                      <div className="flex flex-wrap items-end gap-2"><span className="pb-1 text-base">1.2. เป้าหมายการนำคนรับเชื่อใหม่:</span><input type="number" {...b('d1_2')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /><span className="pb-1 text-base">คน</span></div>
+                      <div className="pt-2"><span className="block mb-2 text-base font-bold">1.3. แผนการประกาศและนำวิญญาณ:</span><textarea {...b('d1_3')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base"></textarea></div>
                     </div>
                   </div>
 
                   <div className="pl-4">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">2. มิติด้านการพัฒนาสมาชิกให้มีคุณภาพ (Developing High Quality Member Resources)</h3>
-                    <div className="pl-6 space-y-4 print:space-y-6">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">2. มิติด้านการพัฒนาสมาชิกให้มีคุณภาพ (Developing High Quality Member Resources)</h3>
+                    <div className="pl-6 space-y-4">
                       <div>
-                        <span className="block mb-2 font-bold text-base print:text-lg">2.1. แผนการส่งเสริมให้สมาชิกทุกคนมีส่วนในการรับใช้อย่างน้อยคนละ 1 อย่าง</span>
-                        <div className="pl-6 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.1.1.</span><input type="text" {...b('d2_1_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.1.2.</span><input type="text" {...b('d2_1_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.1.3.</span><input type="text" {...b('d2_1_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                        <span className="block mb-2 font-bold text-base">2.1. แผนการส่งเสริมให้สมาชิกทุกคนมีส่วนในการรับใช้อย่างน้อยคนละ 1 อย่าง</span>
+                        <div className="pl-6 space-y-2">
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">2.1.1.</span><input type="text" {...b('d2_1_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">2.1.2.</span><input type="text" {...b('d2_1_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">2.1.3.</span><input type="text" {...b('d2_1_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
                         </div>
                       </div>
                       <div>
-                        <span className="block mb-2 font-bold text-base print:text-lg">2.2. แผนการติดตามการมาคริสตจักรและเซลล์อย่างสม่ำเสมอ</span>
-                        <div className="pl-6 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.2.1.</span><input type="text" {...b('d2_2_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.2.2.</span><input type="text" {...b('d2_2_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.2.3.</span><input type="text" {...b('d2_2_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pl-4">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">3. มิติด้านการบุกเบิกคริสตจักร กลุ่ม Cell และพันธกิจใหม่</h3>
-                    <div className="pl-6 space-y-4 print:space-y-6">
-                      <div>
-                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">3.1. เป้าหมายการเปิดกลุ่มเซลล์ใหม่ใน{planningLevel}:</span><input type="number" {...b('d3_1')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg font-bold">เซลล์</span></div>
-                        <span className="block mb-2 pl-6 font-bold text-gray-700 text-base print:text-lg">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
-                        <div className="pl-8 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.1.1.</span><input type="text" {...b('d3_1_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.1.2.</span><input type="text" {...b('d3_1_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.1.3.</span><input type="text" {...b('d3_1_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">3.2. พื้นที่ยุทธศาสตร์ที่ต้องการบุกเบิกเซลล์ใหม่:</span><input type="text" {...b('d3_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                        <span className="block mb-2 pl-6 font-bold text-gray-700 text-base print:text-lg">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
-                        <div className="pl-8 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.2.1.</span><input type="text" {...b('d3_2_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.2.2.</span><input type="text" {...b('d3_2_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.2.3.</span><input type="text" {...b('d3_2_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                        <span className="block mb-2 font-bold text-base">2.2. แผนการติดตามการมาคริสตจักรและเซลล์อย่างสม่ำเสมอ</span>
+                        <div className="pl-6 space-y-2">
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">2.2.1.</span><input type="text" {...b('d2_2_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">2.2.2.</span><input type="text" {...b('d2_2_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">2.2.3.</span><input type="text" {...b('d2_2_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="pl-4">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">4. มิติด้านการพัฒนาผู้นำและเสริมสร้างขีดความสามารถ (Leadership Capacity)</h3>
-                    <div className="pl-6 space-y-4 print:space-y-6">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">3. มิติด้านการบุกเบิกคริสตจักร กลุ่ม Cell และพันธกิจใหม่</h3>
+                    <div className="pl-6 space-y-4">
                       <div>
-                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">4.1. เป้าหมายจำนวนการสร้างหัวหน้าเซลล์ใหม่:</span><input type="number" {...b('d4_1')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg font-bold">คน</span></div>
-                        <span className="block mb-2 pl-6 font-bold text-gray-700 text-base print:text-lg">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
-                        <div className="pl-8 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.1.1.</span><input type="text" {...b('d4_1_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.1.2.</span><input type="text" {...b('d4_1_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.1.3.</span><input type="text" {...b('d4_1_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base font-bold">3.1. เป้าหมายการเปิดกลุ่มเซลล์ใหม่ใน{planningLevel}:</span><input type="number" {...b('d3_1')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /><span className="pb-1 text-base font-bold">เซลล์</span></div>
+                        <span className="block mb-2 pl-6 font-bold text-gray-700 text-base">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
+                        <div className="pl-8 space-y-2">
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">3.1.1.</span><input type="text" {...b('d3_1_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">3.1.2.</span><input type="text" {...b('d3_1_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">3.1.3.</span><input type="text" {...b('d3_1_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
                         </div>
                       </div>
                       <div>
-                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">4.2. เป้าหมายจำนวนการสร้างพี่เลี้ยงใหม่:</span><input type="number" {...b('d4_2')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg font-bold">คน</span></div>
-                        <span className="block mb-2 pl-6 font-bold text-gray-700 text-base print:text-lg">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
-                        <div className="pl-8 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.2.1.</span><input type="text" {...b('d4_2_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.2.2.</span><input type="text" {...b('d4_2_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.2.3.</span><input type="text" {...b('d4_2_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base font-bold">3.2. พื้นที่ยุทธศาสตร์ที่ต้องการบุกเบิกเซลล์ใหม่:</span><input type="text" {...b('d3_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                        <span className="block mb-2 pl-6 font-bold text-gray-700 text-base">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
+                        <div className="pl-8 space-y-2">
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">3.2.1.</span><input type="text" {...b('d3_2_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">3.2.2.</span><input type="text" {...b('d3_2_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">3.2.3.</span><input type="text" {...b('d3_2_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="pl-4">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">5. มิติด้านการอธิษฐานและการนมัสการ (Prayer & Worship)</h3>
-                    <div className="pl-6"><span className="block mb-2 font-bold text-base print:text-lg">5.1. แผนการรณรงค์ให้สมาชิกใน{planningLevel}เข้าร่วมโปรแกรมอธิษฐานให้ได้ 80% ขึ้นไป:</span><textarea {...b('d5_1')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg"></textarea></div>
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">4. มิติด้านการพัฒนาผู้นำและเสริมสร้างขีดความสามารถ (Leadership Capacity)</h3>
+                    <div className="pl-6 space-y-4">
+                      <div>
+                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base font-bold">4.1. เป้าหมายจำนวนการสร้างหัวหน้าเซลล์ใหม่:</span><input type="number" {...b('d4_1')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /><span className="pb-1 text-base font-bold">คน</span></div>
+                        <span className="block mb-2 pl-6 font-bold text-gray-700 text-base">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
+                        <div className="pl-8 space-y-2">
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">4.1.1.</span><input type="text" {...b('d4_1_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">4.1.2.</span><input type="text" {...b('d4_1_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">4.1.3.</span><input type="text" {...b('d4_1_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base font-bold">4.2. เป้าหมายจำนวนการสร้างพี่เลี้ยงใหม่:</span><input type="number" {...b('d4_2')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /><span className="pb-1 text-base font-bold">คน</span></div>
+                        <span className="block mb-2 pl-6 font-bold text-gray-700 text-base">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
+                        <div className="pl-8 space-y-2">
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">4.2.1.</span><input type="text" {...b('d4_2_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">4.2.2.</span><input type="text" {...b('d4_2_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base">4.2.3.</span><input type="text" {...b('d4_2_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base" /></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="pl-4">
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">6. มิติด้านความสัมพันธ์ (Relationship - HCRI)</h3>
-                    <div className="pl-6 space-y-4 print:space-y-6">
-                      <div><span className="block mb-2 font-bold text-base print:text-lg">6.1. แผนการเยี่ยมเยียนและดูแลกัน (Mutual Care):</span><textarea {...b('d6_1')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg"></textarea></div>
-                      <div><span className="block mb-2 font-bold text-base print:text-lg">6.2. กิจกรรมสร้างความเป็นน้ำหนึ่งใจเดียวกันใน{planningLevel} (Unity & Teamwork):</span><textarea {...b('d6_2')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg"></textarea></div>
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">5. มิติด้านการอธิษฐานและการนมัสการ (Prayer & Worship)</h3>
+                    <div className="pl-6"><span className="block mb-2 font-bold text-base">5.1. แผนการรณรงค์ให้สมาชิกใน{planningLevel}เข้าร่วมโปรแกรมอธิษฐานให้ได้ 80% ขึ้นไป:</span><textarea {...b('d5_1')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base"></textarea></div>
+                  </div>
+
+                  <div className="pl-4">
+                    <h3 className="font-bold text-gray-900 mb-3 text-lg">6. มิติด้านความสัมพันธ์ (Relationship - HCRI)</h3>
+                    <div className="pl-6 space-y-4">
+                      <div><span className="block mb-2 font-bold text-base">6.1. แผนการเยี่ยมเยียนและดูแลกัน (Mutual Care):</span><textarea {...b('d6_1')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base"></textarea></div>
+                      <div><span className="block mb-2 font-bold text-base">6.2. กิจกรรมสร้างความเป็นน้ำหนึ่งใจเดียวกันใน{planningLevel} (Unity & Teamwork):</span><textarea {...b('d6_2')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base"></textarea></div>
                     </div>
                   </div>
 
