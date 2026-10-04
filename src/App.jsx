@@ -1,4 +1,4 @@
-// VERSION: FINAL WITH 4 PILLARS - อัปเดตล่าสุด
+// ✨ VERSION: THE REAL 4 PILLARS (CH, CELL, SBC, 1:1) - รอบนี้มาชัวร์ครับมนุษย์ 1! 555
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -475,7 +475,7 @@ export default function App() {
             )}
           </div>
 
-          {/* ✨ นี่ไงครับ! กล่อง 4 เสาหลัก โผล่มาชัวร์ๆ 1,000,000% ระดับคริสตจักร */}
+          {/* ✨ นี่ไงครับ! กล่อง 4 เสาหลัก โผล่มาชัวร์ๆ 1,000,000% โชว์ต่อจากกล่องสรุปสมาชิกด้านบน */}
           {planningLevel === 'คริสตจักร' && (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200 mt-6 print:break-inside-avoid">
               <div className="text-center mb-8 print:mb-6">
