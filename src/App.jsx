@@ -71,9 +71,6 @@ export default function App() {
   const kwangLeaderRoles = ['หัวหน้าแขวง', 'หนข.', 'หนข'];
   const zoneLeaderRoles = ['หัวหน้าเขต', 'หนขต.', 'หนขต'];
 
-  const currentCellLeadersCount = members.filter(m => cellLeaderRoles.includes(m['สถานะ']?.trim())).length;
-  const currentMentorCount = members.filter(m => mentorRoles.includes(m['สถานะ']?.trim())).length;
-
   const totalAttendance = attendanceData.reduce((sum, item) => sum + item.count, 0);
   const avgAttendance = attendanceData.length > 0 ? Math.round(totalAttendance / attendanceData.length) : 0;
   const percentage = areaTarget && Number(areaTarget) > 0 ? Math.round((avgAttendance / Number(areaTarget)) * 100) : 0;
@@ -190,6 +187,26 @@ export default function App() {
     return { t_mem, t_cell, t_lead, t_men };
   }, [myPlans, planningLevel]);
 
+  // ✨ คำนวณตัวเลขสภาพปัจจุบันเพื่อไปโชว์ในตารางแทนคำว่า "ดูในตารางด้านบน"
+  const currentAreaStats = useMemo(() => {
+    const targetArea = viewingPlan ? viewingPlan.area : selectedArea;
+    const targetLevel = viewingPlan ? viewingPlan.level : planningLevel;
+    
+    let filteredMembers = members;
+    if (targetLevel === 'แขวง') {
+       filteredMembers = members.filter(m => m['แขวง']?.trim() === targetArea?.trim());
+    } else if (targetLevel === 'เขต') {
+       filteredMembers = members.filter(m => m.Zone?.trim() === targetArea?.trim());
+    }
+
+    const memCount = filteredMembers.length;
+    const cellCount = [...new Set(filteredMembers.map(m => m.Cell?.trim()).filter(Boolean))].length;
+    const leaderCount = filteredMembers.filter(m => cellLeaderRoles.includes(m['สถานะ']?.trim())).length;
+    const mentorCount = filteredMembers.filter(m => mentorRoles.includes(m['สถานะ']?.trim())).length;
+
+    return { memCount, cellCount, leaderCount, mentorCount };
+  }, [members, viewingPlan, selectedArea, planningLevel]);
+
   const handleLogin = async (e) => {
     e.preventDefault()
     const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
@@ -285,7 +302,6 @@ export default function App() {
     }
   }
 
-  // ✨ ฟังก์ชันสำหรับลบแผนงานฉบับร่าง
   const handleDeletePlan = async (id) => {
     if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบแผนงานฉบับร่างนี้?\n(ลบแล้วจะไม่สามารถกู้คืนได้นะครับ)')) {
       try {
@@ -293,7 +309,6 @@ export default function App() {
         if (error) throw error;
         alert('ลบแผนงานเรียบร้อยแล้วครับ 🗑️');
         
-        // ถ้ากำลังดูแผนที่ลบอยู่ ให้ปิดฟอร์ม
         if (viewingPlan?.id === id) {
            setViewingPlan(null);
            setPlanForm(defaultPlanForm);
@@ -509,7 +524,7 @@ export default function App() {
           
           <div className="hidden print:flex justify-between items-center border-b-2 border-orange-500 pb-6 mb-6">
             <div>
-              <h1 className="text-4xl font-black text-gray-900">ระบบวางแผน ปี 2027</h1>
+              <h1 className="text-4xl font-black text-gray-900">รายงานข้อมูลและแผนงาน ปี 2027</h1>
               <p className="text-xl text-gray-600 font-bold mt-2">ระดับ{planningLevel === 'คริสตจักร' ? 'คริสตจักรแห่งนิมิตพิษณุโลก' : `${planningLevel}: ${selectedArea}`}</p>
               {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 font-medium mt-1">ผู้รับผิดชอบ: {userName}</p>}
             </div>
@@ -656,8 +671,8 @@ export default function App() {
                                 {planningLevel === 'แขวง' && p.status === 'draft' ? (
                                    <>
                                       <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(false); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition shadow-sm">แก้ไขต่อ ✏️</button>
-                                      {/* ✨ ปุ่มลบเฉพาะตอนที่เป็น Draft */}
-                                      <button onClick={() => handleDeletePlan(p.id)} className="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 transition shadow-sm">ลบ 🗑️</button>
+                                      {/* ปุ่มลบเฉพาะตอนที่เป็น Draft */}
+                                      <button onClick={() => handleDeletePlan(p.id)} className="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 transition shadow-sm">ลบ 🗑️️</button>
                                    </>
                                 ) : planningLevel === 'เขต' && p.status === 'submitted' ? (
                                    <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-5 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">ตรวจ / แนะนำ 💬</button>
@@ -834,10 +849,12 @@ export default function App() {
                          {viewingPlan && <span className="bg-indigo-100 text-indigo-700 px-4 py-1 text-sm rounded-full font-bold border border-indigo-200">โหมดดูข้อมูล/ตรวจแผน</span>}
                       </h1>
                       <div className="flex flex-col md:flex-row md:items-end gap-6 text-lg font-medium text-gray-800">
+                        {/* ✨ เปลี่ยนหัวฟอร์มให้แสดงคำว่า "ชื่อแขวง" ชัดเจนเสมอเวลากดดูข้อมูล! */}
                         <div className="flex items-end gap-3"><span className="whitespace-nowrap">ชื่อ{viewingPlan ? viewingPlan.level : planningLevel}:</span><span className="border-b-2 border-dotted border-orange-300 flex-1 md:w-64 text-center font-bold text-orange-600 pb-1 px-2">{viewingPlan ? viewingPlan.area : selectedArea}</span></div>
                         <div className="flex items-end gap-3"><span className="whitespace-nowrap">ผู้รับผิดชอบ:</span><span className="border-b-2 border-dotted border-orange-300 w-64 text-center font-bold text-orange-600 pb-1 px-2">{viewingPlan ? viewingPlan.reporter : userName}</span></div>
                       </div>
                     </div>
+                    {/* ปุ่มสำหรับล้างฟอร์มเพื่อสร้างแผนใหม่ (ถ้าแขวงกำลังดูอันเก่าอยู่) */}
                     {viewingPlan && planningLevel === 'แขวง' && (
                        <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="text-sm bg-gray-100 hover:bg-gray-200 px-5 py-3 rounded-xl font-bold text-gray-700 transition shadow-sm print:hidden">
                          + สร้างฉบับร่างใหม่
@@ -846,6 +863,7 @@ export default function App() {
                   </div>
 
                   <div>
+                    {/* ✨ เปลี่ยนคำว่า "เขต" เป็น "แขวง" อัตโนมัติเวลาที่เขตกำลังดูแผนของแขวง */}
                     <h2 className="text-xl print:text-2xl font-bold mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 print:w-10 print:h-10 rounded-full flex items-center justify-center text-sm print:text-xl print:border print:border-black print:bg-white print:text-black">1</span> เป้าหมายตัวเลขของ{viewingPlan ? viewingPlan.level : planningLevel}ในปี 2027</h2>
                     <div className="overflow-x-auto rounded-xl border border-orange-200 bg-white">
                       <table className="w-full border-collapse text-base print:text-lg">
@@ -855,17 +873,17 @@ export default function App() {
                         <tbody>
                           <tr className="border-b border-orange-200 print:border-gray-400">
                             <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400">จำนวนสมาชิกใน{viewingPlan ? viewingPlan.level : planningLevel}</td>
-                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">ดูในตารางด้านบน</td>
+                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">{currentAreaStats.memCount} คน</td>
                             <td className="p-3 print:p-4 bg-white"><div className="flex items-end gap-2"><input type="number" {...b('t_mem')} className={`w-24 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
                           </tr>
                           <tr className="border-b border-orange-200 print:border-gray-400">
                             <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400">จำนวนกลุ่มเซลล์</td>
-                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">ดูในตารางด้านบน</td>
+                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">{currentAreaStats.cellCount} กลุ่ม</td>
                             <td className="p-3 print:p-4 bg-white"><div className="flex items-end gap-2"><span className="font-bold text-gray-800 pb-1">ขยายใหม่</span><input type="number" {...b('t_cell')} className={`w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="font-bold text-gray-800 pb-1">กลุ่ม</span></div></td>
                           </tr>
                           <tr>
                             <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400 align-top">การสร้างและพัฒนาผู้นำใหม่</td>
-                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium align-top">ดูในตารางด้านบน</td>
+                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium align-top"><div className="space-y-4"><div><span className="font-bold text-lg print:text-xl">{currentAreaStats.leaderCount}</span> คน <span className="text-sm text-gray-500">(หนซ.)</span></div><div><span className="font-bold text-lg print:text-xl">{currentAreaStats.mentorCount}</span> คน <span className="text-sm text-gray-500">(พี่เลี้ยง)</span></div></div></td>
                             <td className="p-3 print:p-4 space-y-4 py-4 align-top bg-white"><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">หัวหน้าเซลล์ใหม่</span><input type="number" {...b('t_lead')} className={`w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="font-bold text-gray-800 pb-1">คน</span></div><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">พี่เลี้ยงใหม่</span><input type="number" {...b('t_men')} className={`w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
                           </tr>
                         </tbody>
@@ -972,7 +990,7 @@ export default function App() {
 
                 </div>
 
-                {/* ✨ ส่วนของปุ่มกดและคอมเมนต์ด้านล่างฟอร์ม */}
+                {/* ส่วนของปุ่มกดและคอมเมนต์ด้านล่างฟอร์ม */}
                 {isReadOnly ? (
                    <div className="pt-10 print:hidden space-y-6 border-t-2 border-gray-100 mt-6">
                       {/* กล่องแสดงข้อเสนอแนะจากเขต (ถ้ามี) */}
