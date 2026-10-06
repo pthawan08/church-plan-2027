@@ -1,4 +1,4 @@
-// ✨ VERSION: THE REAL 4 PILLARS (CH, CELL, SBC, 1:1) - รอบนี้มาชัวร์ครับมนุษย์ 1! 555
+// ✨ VERSION: ULTIMATE (Save Draft + Review Workflow + 4 Pillars)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -34,7 +34,6 @@ export default function App() {
   const [adminAttData, setAdminAttData] = useState({})
 
   const [areaTarget, setAreaTarget] = useState('')
-
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -43,19 +42,28 @@ export default function App() {
     role: '', unit: '', cell: '', zone: '', kwang: ''
   })
 
+  // ✨ State ใหม่สำหรับระบบ Workflow
+  const [myPlans, setMyPlans] = useState([])
+  const [viewingPlan, setViewingPlan] = useState(null)
+  const [isReadOnly, setIsReadOnly] = useState(false)
+  const [feedbackInput, setFeedbackInput] = useState('')
+  
   const [isSavingPlan, setIsSavingPlan] = useState(false)
   const [planForm, setPlanForm] = useState(defaultPlanForm)
 
   const b = (f) => ({ 
     value: planForm[f] || '', 
     onChange: e => {
+      if (isReadOnly) return;
       const newPlan = {...planForm, [f]: e.target.value};
       setPlanForm(newPlan);
       const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
-      if (areaKey) {
+      if (areaKey && !viewingPlan?.id) {
         localStorage.setItem('planForm_' + areaKey, JSON.stringify(newPlan));
       }
-    } 
+    },
+    disabled: isReadOnly,
+    readOnly: isReadOnly
   })
 
   const cellLeaderRoles = ['หัวหน้าเซลล์', 'หนซ.', 'หนซ'];
@@ -124,15 +132,17 @@ export default function App() {
     } else { setUserName(''); }
   }, [availableUsers, selectedArea]);
 
+  // ✨ อัปเดตฟังก์ชันดึงข้อมูลให้รีเทิร์นค่ากลับไปใช้ต่อ
   const fetchMembers = async (level, area) => {
-    if (level === 'คริสตจักร') {
-      const { data, error } = await supabase.from('members').select('*').order('id', { ascending: true })
-      if (error) throw error; setMembers(data)
-    } else {
-      const filterColumn = level === 'เขต' ? 'Zone' : 'แขวง'
-      const { data, error } = await supabase.from('members').select('*').ilike(filterColumn, `%${area}%`).order('id', { ascending: true })
-      if (error) throw error; setMembers(data)
+    let query = supabase.from('members').select('*').order('id', { ascending: true });
+    if (level !== 'คริสตจักร') {
+      const filterColumn = level === 'เขต' ? 'Zone' : 'แขวง';
+      query = query.ilike(filterColumn, `%${area}%`);
     }
+    const { data, error } = await query;
+    if (error) throw error; 
+    setMembers(data || []);
+    return data || [];
   }
 
   const fetchAttendance = async (level, area) => {
@@ -153,6 +163,24 @@ export default function App() {
     setAttendanceData(chartData)
   }
 
+  // ✨ ฟังก์ชันใหม่! ดึงประวัติแผนงาน
+  const fetchPlans = async (level, area, memData) => {
+    const { data, error } = await supabase.from('church_plans').select('*').order('id', { ascending: false });
+    if (error || !data) return;
+    
+    if (level === 'แขวง') {
+      // แขวงเห็นแค่แผนของตัวเอง
+      setMyPlans(data.filter(p => p.level === 'แขวง' && p.area === area));
+    } else if (level === 'เขต') {
+      // เขตเห็นแผนของทุกแขวงที่อยู่ในเขตตัวเอง
+      const kwangsInZone = [...new Set(memData.filter(m => m.Zone?.trim() === area).map(m => m['แขวง']?.trim()).filter(Boolean))];
+      setMyPlans(data.filter(p => p.level === 'แขวง' && kwangsInZone.includes(p.area?.trim())));
+    } else {
+      // คริสตจักรเห็นหมด
+      setMyPlans(data);
+    }
+  }
+
   const handleLogin = async (e) => {
     e.preventDefault()
     const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
@@ -166,9 +194,15 @@ export default function App() {
     setIsLoading(true)
     try {
       if (planningLevel === 'คริสตจักร') {
-        await fetchMembers('คริสตจักร', ''); await fetchAttendance('คริสตจักร', ''); setCurrentView('dashboard')
+        const mData = await fetchMembers('คริสตจักร', ''); 
+        await fetchAttendance('คริสตจักร', ''); 
+        await fetchPlans('คริสตจักร', '', mData);
+        setCurrentView('dashboard')
       } else if (userName && selectedArea) {
-        await fetchMembers(planningLevel, selectedArea); await fetchAttendance(planningLevel, selectedArea); setCurrentView('dashboard')
+        const mData = await fetchMembers(planningLevel, selectedArea); 
+        await fetchAttendance(planningLevel, selectedArea); 
+        await fetchPlans(planningLevel, selectedArea, mData);
+        setCurrentView('dashboard')
       } else { alert(`กรุณาเลือก${planningLevel}และชื่อผู้กรอก`) }
     } catch (error) { alert('เกิดข้อผิดพลาดในการดึงข้อมูล') } finally { setIsLoading(false) }
   }
@@ -206,17 +240,56 @@ export default function App() {
     } catch (error) { console.error('Batch error:', error); alert('❌ บันทึกสถิติไม่สำเร็จ: ' + error.message) } finally { setIsSavingAtt(false) }
   }
 
-  const handleSavePlan = async (e) => {
-    e.preventDefault(); setIsSavingPlan(true)
+  // ✨ ระบบบันทึกแผนงานแบบใหม่ (มี Draft และ Submit)
+  const handleSavePlan = async (statusToSave) => {
+    setIsSavingPlan(true);
     try {
-      const payload = { level: planningLevel, area: selectedArea, reporter: userName, plan_data: planForm }
-      const { error } = await supabase.from('church_plans').insert([payload])
-      if (error) throw error
+      const payload = { 
+        level: planningLevel, 
+        area: selectedArea, 
+        reporter: userName, 
+        plan_data: planForm,
+        status: statusToSave 
+      };
       
-      const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
-      localStorage.removeItem('planForm_' + areaKey);
-      setCurrentView('success')
-    } catch (error) { alert('บันทึกแผนงานไม่สำเร็จ: ' + error.message) } finally { setIsSavingPlan(false) }
+      if (viewingPlan?.id) {
+        await supabase.from('church_plans').update(payload).eq('id', viewingPlan.id);
+      } else {
+        await supabase.from('church_plans').insert([payload]);
+      }
+      
+      alert(statusToSave === 'draft' ? 'บันทึกฉบับร่างเรียบร้อยแล้ว! 💾' : 'ส่งแผนงานให้เขตสำเร็จ! 🚀');
+      
+      await fetchPlans(planningLevel, selectedArea, members);
+      
+      if (statusToSave === 'submitted') {
+         setPlanForm(defaultPlanForm);
+         setViewingPlan(null);
+         setIsReadOnly(false);
+         const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
+         localStorage.removeItem('planForm_' + areaKey);
+         setCurrentView('success');
+      }
+    } catch (error) { 
+      alert('บันทึกไม่สำเร็จ: ' + error.message);
+    } finally { 
+      setIsSavingPlan(false);
+    }
+  }
+
+  // ✨ ระบบหัวหน้าเขตส่งข้อเสนอแนะกลับให้แขวง
+  const handleSaveFeedback = async () => {
+    try {
+      await supabase.from('church_plans').update({ status: 'reviewed', feedback: feedbackInput }).eq('id', viewingPlan.id);
+      alert('ส่งข้อเสนอแนะให้แขวงเรียบร้อยแล้ว! 💬');
+      setFeedbackInput('');
+      setViewingPlan(null);
+      setIsReadOnly(false);
+      setPlanForm(defaultPlanForm);
+      await fetchPlans(planningLevel, selectedArea, members);
+    } catch (err) {
+      alert('บันทึกข้อเสนอแนะไม่สำเร็จ: ' + err.message);
+    }
   }
 
   const handleOpenAdd = () => {
@@ -475,7 +548,7 @@ export default function App() {
             )}
           </div>
 
-          {/* ✨ นี่ไงครับ! กล่อง 4 เสาหลัก โผล่มาชัวร์ๆ 1,000,000% โชว์ต่อจากกล่องสรุปสมาชิกด้านบน */}
+          {/* ✨ นี่ไงครับ! กล่อง 4 เสาหลัก โผล่มาชัวร์ๆ โชว์ต่อจากกล่องสรุปสมาชิกด้านบน (เฉพาะระดับคริสตจักร) */}
           {planningLevel === 'คริสตจักร' && (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200 mt-6 print:break-inside-avoid">
               <div className="text-center mb-8 print:mb-6">
@@ -516,6 +589,50 @@ export default function App() {
                   <p className="text-lg font-bold text-lime-900 mb-4">คน/สัปดาห์</p>
                   <p className="text-sm font-bold text-lime-800 bg-[#d9f99d] py-2 px-4 rounded-xl w-full">คิดเป็น 34% ของการสร้างสาวกแบบส่วนตัว</p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ✨ ระบบแสดงตารางประวัติการส่งแผนงาน (เฉพาะระดับแขวงและเขต) */}
+          {(planningLevel === 'แขวง' || planningLevel === 'เขต') && myPlans.length > 0 && (
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
+              <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3 mb-6"><span className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">📋</span> ประวัติแผนงาน 6 มิติ</h2>
+              <div className="overflow-x-auto rounded-xl border border-gray-100">
+                <table className="w-full text-left border-collapse whitespace-nowrap">
+                   <thead className="bg-gray-50 text-gray-600 text-sm">
+                      <tr>
+                        <th className="p-4 font-bold border-b border-gray-100">วันที่สร้าง</th>
+                        <th className="p-4 font-bold border-b border-gray-100">แขวงที่ส่ง</th>
+                        <th className="p-4 font-bold border-b border-gray-100">ผู้จัดทำ</th>
+                        <th className="p-4 font-bold border-b border-gray-100">สถานะการตรวจ</th>
+                        <th className="p-4 font-bold border-b border-gray-100 text-center">จัดการ</th>
+                      </tr>
+                   </thead>
+                   <tbody>
+                      {myPlans.map(p => (
+                         <tr key={p.id} className="border-b border-gray-50 hover:bg-slate-50 transition-colors">
+                           <td className="p-4 text-sm font-medium text-gray-600">{new Date(p.created_at || Date.now()).toLocaleDateString('th-TH')}</td>
+                           <td className="p-4 font-black text-gray-800 text-base">{p.area}</td>
+                           <td className="p-4 text-sm text-gray-600">{p.reporter}</td>
+                           <td className="p-4">
+                              {p.status === 'draft' && <span className="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-full text-xs font-black">📝 บันทึกร่าง</span>}
+                              {p.status === 'submitted' && <span className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black border border-blue-200">⏳ รอเขตตรวจ</span>}
+                              {p.status === 'reviewed' && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ตรวจแล้ว</span>}
+                              {!p.status && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ส่งแล้ว (เวอร์ชันเก่า)</span>}
+                           </td>
+                           <td className="p-4 text-center">
+                              {planningLevel === 'แขวง' && p.status === 'draft' ? (
+                                 <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(false); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-orange-600 font-bold text-sm bg-orange-50 px-5 py-2 rounded-xl hover:bg-orange-100 transition shadow-sm">แก้ไขต่อ ✏️</button>
+                              ) : planningLevel === 'เขต' && p.status === 'submitted' ? (
+                                 <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-5 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">ตรวจ/แนะนำ 💬</button>
+                              ) : (
+                                 <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-gray-600 font-bold text-sm bg-gray-100 px-5 py-2 rounded-xl hover:bg-gray-200 transition shadow-sm">ดูข้อมูล 📄</button>
+                              )}
+                           </td>
+                         </tr>
+                      ))}
+                   </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -630,47 +747,35 @@ export default function App() {
           )}
         </div>
 
-        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ --- */}
-        <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0 print-enlarge-text">
-          {planningLevel !== 'คริสตจักร' && (
+        {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ (โชว์เมื่อเป็นระดับแขวง หรือตอนเขตกดเข้ามาตรวจ) --- */}
+        {(planningLevel === 'แขวง' || (planningLevel === 'เขต' && viewingPlan)) && (
+          <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0 print-enlarge-text">
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
               
-              <form onSubmit={handleSavePlan} className="text-gray-900">
+              <form onSubmit={(e) => e.preventDefault()} className="text-gray-900">
                 
                 <div className="pb-4">
-                  <div className="mb-12 pb-8 border-b-2 border-orange-200">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-8 tracking-tight">แบบฟอร์มวางแผนรับใช้ 6 มิติ (ปี 2027)</h1>
-                    <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><span className="bg-orange-300 w-2 h-6 rounded-full inline-block print:hidden"></span>ข้อมูล{planningLevel}และผู้รับผิดชอบ</h3>
-                    <div className="flex flex-col md:flex-row md:items-end gap-6 md:gap-12 text-lg font-medium text-gray-800">
-                      <div className="flex items-end gap-3 w-full md:w-auto"><span className="whitespace-nowrap">ชื่อ{planningLevel}:</span><span className="border-b-2 border-dotted border-orange-300 flex-1 md:w-64 text-center font-bold text-orange-600 pb-1 px-4">{selectedArea}</span></div>
-                      <div className="flex items-end gap-3 w-full md:w-auto"><span className="whitespace-nowrap">ผู้รับผิดชอบ:</span><span className="border-b-2 border-dotted border-orange-300 flex-1 md:w-80 text-center font-bold text-orange-600 pb-1 px-4">{userName}</span></div>
+                  <div className="mb-12 pb-8 border-b-2 border-orange-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6 tracking-tight flex items-center gap-3">
+                         แบบฟอร์มวางแผนรับใช้ 6 มิติ 
+                         {viewingPlan && <span className="bg-indigo-100 text-indigo-700 px-4 py-1 text-sm rounded-full font-bold border border-indigo-200">โหมดดูข้อมูล/ตรวจแผน</span>}
+                      </h1>
+                      <div className="flex flex-col md:flex-row md:items-end gap-6 text-lg font-medium text-gray-800">
+                        <div className="flex items-end gap-3"><span className="whitespace-nowrap">ชื่อแขวง:</span><span className="border-b-2 border-dotted border-orange-300 w-48 text-center font-bold text-orange-600 pb-1">{viewingPlan ? viewingPlan.area : selectedArea}</span></div>
+                        <div className="flex items-end gap-3"><span className="whitespace-nowrap">ผู้รับผิดชอบ:</span><span className="border-b-2 border-dotted border-orange-300 w-64 text-center font-bold text-orange-600 pb-1">{viewingPlan ? viewingPlan.reporter : userName}</span></div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="bg-white border-2 border-[#ea580c] rounded-2xl p-4 md:p-6 mb-8 relative shadow-sm print:border-orange-500">
-                    <div className="absolute top-0 right-0 bg-[#1e293b] text-white font-bold py-1 px-4 rounded-bl-xl text-xs md:text-sm tracking-widest print:bg-white print:text-black print:border-b print:border-l print:border-orange-500">KPI 2027</div>
-                    <h2 className="text-xl md:text-2xl font-black text-[#ea580c] mb-6 flex items-center gap-2 mt-1"><span className="bg-[#ffedd5] p-2 rounded-lg text-xl print:hidden">🎯</span> สรุปภาพรวมเป้าหมายคริสตจักร ปี 2027</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-center mb-4">
-                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">เป้าหมายสมาชิก</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">1,000 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
-                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">ผู้สนใจ</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">1,000 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
-                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">ผู้รับเชื่อ</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">2,000 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
-                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5]"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">ประกาศ</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">10,000 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
-                      <div className="bg-[#fff7ed] py-3 px-2 rounded-xl border border-[#ffedd5] col-span-2 md:col-span-1"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">ตำบลเป้าหมาย</p><p className="text-2xl md:text-3xl font-black text-[#ea580c]">10 <span className="text-sm font-bold text-slate-600">แห่ง</span></p></div>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-                      <div className="bg-[#f8fafc] py-3 px-2 rounded-xl border border-gray-200"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">หัวหน้าเซลล์ใหม่</p><p className="text-xl md:text-2xl font-black text-slate-800">150 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
-                      <div className="bg-[#f8fafc] py-3 px-2 rounded-xl border border-gray-200"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">พี่เลี้ยงใหม่</p><p className="text-xl md:text-2xl font-black text-slate-800">300 <span className="text-sm font-bold text-slate-600">คน</span></p></div>
-                      <div className="bg-[#f8fafc] py-3 px-2 rounded-xl border border-gray-200"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">เซลล์ใหม่</p><p className="text-xl md:text-2xl font-black text-slate-800">150 <span className="text-sm font-bold text-slate-600">กลุ่ม</span></p></div>
-                      <div className="bg-[#f8fafc] py-3 px-2 rounded-xl border border-gray-200"><p className="text-slate-700 font-bold text-sm md:text-base print:text-lg mb-1">พันธกิจใหม่</p><p className="text-xl md:text-2xl font-black text-slate-800">5-10 <span className="text-sm font-bold text-slate-600">พันธกิจ</span></p></div>
-                    </div>
-                    <div className="mt-4 bg-[#fff7ed] border border-[#fed7aa] py-3 px-5 rounded-xl flex flex-col md:flex-row justify-center items-center gap-4">
-                      <p className="text-[#9a3412] font-black text-lg md:text-xl print:text-2xl italic">" 50% ของ 1,000 คน เป็นทีมผู้นำ "</p>
-                      <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-[#ffedd5]"><p className="text-[#c2410c] font-bold text-base md:text-lg print:text-xl">80%+ เข้าร่วมโปรแกรมอธิษฐาน</p></div>
-                    </div>
+                    {/* ปุ่มสำหรับล้างฟอร์มเพื่อสร้างแผนใหม่ (ถ้ากำลังดูอันเก่าอยู่) */}
+                    {viewingPlan && planningLevel === 'แขวง' && (
+                       <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="text-sm bg-gray-100 hover:bg-gray-200 px-5 py-3 rounded-xl font-bold text-gray-700 transition shadow-sm print:hidden">
+                         + สร้างฉบับร่างใหม่
+                       </button>
+                    )}
                   </div>
 
                   <div>
-                    <h2 className="text-xl print:text-2xl font-bold mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 print:w-10 print:h-10 rounded-full flex items-center justify-center text-sm print:text-xl print:border print:border-black print:bg-white print:text-black">1</span> เป้าหมายตัวเลขของ{planningLevel}ในปี 2027</h2>
+                    <h2 className="text-xl print:text-2xl font-bold mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 print:w-10 print:h-10 rounded-full flex items-center justify-center text-sm print:text-xl print:border print:border-black print:bg-white print:text-black">1</span> เป้าหมายตัวเลขของแขวงในปี 2027</h2>
                     <div className="overflow-x-auto rounded-xl border border-orange-200 bg-white">
                       <table className="w-full border-collapse text-base print:text-lg">
                         <thead>
@@ -678,19 +783,19 @@ export default function App() {
                         </thead>
                         <tbody>
                           <tr className="border-b border-orange-200 print:border-gray-400">
-                            <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400">จำนวนสมาชิกใน{planningLevel}</td>
-                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">{members.length} คน</td>
-                            <td className="p-3 print:p-4 bg-white"><div className="flex items-end gap-2"><input type="number" {...b('t_mem')} className="w-24 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
+                            <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400">จำนวนสมาชิก</td>
+                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">ดูในตารางด้านบน</td>
+                            <td className="p-3 print:p-4 bg-white"><div className="flex items-end gap-2"><input type="number" {...b('t_mem')} className={`w-24 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
                           </tr>
                           <tr className="border-b border-orange-200 print:border-gray-400">
                             <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400">จำนวนกลุ่มเซลล์</td>
-                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">{uniqueCellCount} กลุ่ม</td>
-                            <td className="p-3 print:p-4 bg-white"><div className="flex items-end gap-2"><span className="font-bold text-gray-800 pb-1">ขยายใหม่</span><input type="number" {...b('t_cell')} className="w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">กลุ่ม</span></div></td>
+                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium">ดูในตารางด้านบน</td>
+                            <td className="p-3 print:p-4 bg-white"><div className="flex items-end gap-2"><span className="font-bold text-gray-800 pb-1">ขยายใหม่</span><input type="number" {...b('t_cell')} className={`w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="font-bold text-gray-800 pb-1">กลุ่ม</span></div></td>
                           </tr>
                           <tr>
                             <td className="p-3 print:p-4 font-bold text-gray-800 border-r border-orange-200 print:border-gray-400 align-top">การสร้างและพัฒนาผู้นำใหม่</td>
-                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium align-top"><div className="space-y-4"><div><span className="font-bold text-lg print:text-xl">{currentCellLeadersCount}</span> คน <span className="text-sm text-gray-500">(หนซ.)</span></div><div><span className="font-bold text-lg print:text-xl">{currentMentorCount}</span> คน <span className="text-sm text-gray-500">(พี่เลี้ยง)</span></div></div></td>
-                            <td className="p-3 print:p-4 space-y-4 py-4 align-top bg-white"><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">หัวหน้าเซลล์ใหม่</span><input type="number" {...b('t_lead')} className="w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">คน</span></div><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">พี่เลี้ยงใหม่</span><input type="number" {...b('t_men')} className="w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold text-orange-600 pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black" /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
+                            <td className="p-3 print:p-4 text-center text-gray-800 border-r border-orange-200 print:border-gray-400 font-medium align-top">ดูในตารางด้านบน</td>
+                            <td className="p-3 print:p-4 space-y-4 py-4 align-top bg-white"><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">หัวหน้าเซลล์ใหม่</span><input type="number" {...b('t_lead')} className={`w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="font-bold text-gray-800 pb-1">คน</span></div><div className="flex items-end gap-2"><span className="w-32 font-bold text-gray-800 pb-1">พี่เลี้ยงใหม่</span><input type="number" {...b('t_men')} className={`w-16 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="font-bold text-gray-800 pb-1">คน</span></div></td>
                           </tr>
                         </tbody>
                       </table>
@@ -705,9 +810,9 @@ export default function App() {
                   <div className="pl-4">
                     <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">1. มิติด้านการเจริญเติบโตด้านปริมาณ (Quantitative Growth)</h3>
                     <div className="pl-6 space-y-3 print:space-y-4">
-                      <div className="flex flex-wrap items-end gap-2"><span className="pb-1 text-base print:text-lg">1.1. เป้าหมายจำนวนสมาชิกใน{planningLevel}ที่เพิ่มขึ้นในปี 2027:</span><input type="number" {...b('d1_1')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg">คน</span></div>
-                      <div className="flex flex-wrap items-end gap-2"><span className="pb-1 text-base print:text-lg">1.2. เป้าหมายการนำคนรับเชื่อใหม่:</span><input type="number" {...b('d1_2')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg">คน</span></div>
-                      <div className="pt-2"><span className="block mb-2 text-base print:text-lg font-bold">1.3. แผนการประกาศและนำวิญญาณ:</span><textarea {...b('d1_3')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg"></textarea></div>
+                      <div className="flex flex-wrap items-end gap-2"><span className="pb-1 text-base print:text-lg">1.1. เป้าหมายจำนวนสมาชิกที่เพิ่มขึ้นในปี 2027:</span><input type="number" {...b('d1_1')} className={`border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="pb-1 text-base print:text-lg">คน</span></div>
+                      <div className="flex flex-wrap items-end gap-2"><span className="pb-1 text-base print:text-lg">1.2. เป้าหมายการนำคนรับเชื่อใหม่:</span><input type="number" {...b('d1_2')} className={`border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="pb-1 text-base print:text-lg">คน</span></div>
+                      <div className="pt-2"><span className="block mb-2 text-base print:text-lg font-bold">1.3. แผนการประกาศและนำวิญญาณ:</span><textarea {...b('d1_3')} className={`w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`}></textarea></div>
                     </div>
                   </div>
 
@@ -717,17 +822,17 @@ export default function App() {
                       <div>
                         <span className="block mb-2 font-bold text-base print:text-lg">2.1. แผนการส่งเสริมให้สมาชิกทุกคนมีส่วนในการรับใช้อย่างน้อยคนละ 1 อย่าง</span>
                         <div className="pl-6 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.1.1.</span><input type="text" {...b('d2_1_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.1.2.</span><input type="text" {...b('d2_1_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.1.3.</span><input type="text" {...b('d2_1_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.1.1.</span><input type="text" {...b('d2_1_1')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.1.2.</span><input type="text" {...b('d2_1_2')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.1.3.</span><input type="text" {...b('d2_1_3')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
                         </div>
                       </div>
                       <div>
                         <span className="block mb-2 font-bold text-base print:text-lg">2.2. แผนการติดตามการมาคริสตจักรและเซลล์อย่างสม่ำเสมอ</span>
                         <div className="pl-6 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.2.1.</span><input type="text" {...b('d2_2_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.2.2.</span><input type="text" {...b('d2_2_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.2.3.</span><input type="text" {...b('d2_2_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.2.1.</span><input type="text" {...b('d2_2_1')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.2.2.</span><input type="text" {...b('d2_2_2')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">2.2.3.</span><input type="text" {...b('d2_2_3')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
                         </div>
                       </div>
                     </div>
@@ -737,21 +842,21 @@ export default function App() {
                     <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">3. มิติด้านการบุกเบิกคริสตจักร กลุ่ม Cell และพันธกิจใหม่</h3>
                     <div className="pl-6 space-y-4 print:space-y-6">
                       <div>
-                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">3.1. เป้าหมายการเปิดกลุ่มเซลล์ใหม่ใน{planningLevel}:</span><input type="number" {...b('d3_1')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg font-bold">เซลล์</span></div>
+                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">3.1. เป้าหมายการเปิดกลุ่มเซลล์ใหม่:</span><input type="number" {...b('d3_1')} className={`border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="pb-1 text-base print:text-lg font-bold">เซลล์</span></div>
                         <span className="block mb-2 pl-6 font-bold text-gray-700 text-base print:text-lg">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
                         <div className="pl-8 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.1.1.</span><input type="text" {...b('d3_1_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.1.2.</span><input type="text" {...b('d3_1_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.1.3.</span><input type="text" {...b('d3_1_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.1.1.</span><input type="text" {...b('d3_1_1')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.1.2.</span><input type="text" {...b('d3_1_2')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.1.3.</span><input type="text" {...b('d3_1_3')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
                         </div>
                       </div>
                       <div>
-                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">3.2. พื้นที่ยุทธศาสตร์ที่ต้องการบุกเบิกเซลล์ใหม่:</span><input type="text" {...b('d3_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">3.2. พื้นที่ยุทธศาสตร์ที่ต้องการบุกเบิกเซลล์ใหม่:</span><input type="text" {...b('d3_2')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
                         <span className="block mb-2 pl-6 font-bold text-gray-700 text-base print:text-lg">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
                         <div className="pl-8 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.2.1.</span><input type="text" {...b('d3_2_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.2.2.</span><input type="text" {...b('d3_2_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.2.3.</span><input type="text" {...b('d3_2_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.2.1.</span><input type="text" {...b('d3_2_1')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.2.2.</span><input type="text" {...b('d3_2_2')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">3.2.3.</span><input type="text" {...b('d3_2_3')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
                         </div>
                       </div>
                     </div>
@@ -761,21 +866,21 @@ export default function App() {
                     <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">4. มิติด้านการพัฒนาผู้นำและเสริมสร้างขีดความสามารถ (Leadership Capacity)</h3>
                     <div className="pl-6 space-y-4 print:space-y-6">
                       <div>
-                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">4.1. เป้าหมายจำนวนการสร้างหัวหน้าเซลล์ใหม่:</span><input type="number" {...b('d4_1')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg font-bold">คน</span></div>
+                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">4.1. เป้าหมายจำนวนการสร้างหัวหน้าเซลล์ใหม่:</span><input type="number" {...b('d4_1')} className={`border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="pb-1 text-base print:text-lg font-bold">คน</span></div>
                         <span className="block mb-2 pl-6 font-bold text-gray-700 text-base print:text-lg">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
                         <div className="pl-8 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.1.1.</span><input type="text" {...b('d4_1_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.1.2.</span><input type="text" {...b('d4_1_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.1.3.</span><input type="text" {...b('d4_1_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.1.1.</span><input type="text" {...b('d4_1_1')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.1.2.</span><input type="text" {...b('d4_1_2')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.1.3.</span><input type="text" {...b('d4_1_3')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
                         </div>
                       </div>
                       <div>
-                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">4.2. เป้าหมายจำนวนการสร้างพี่เลี้ยงใหม่:</span><input type="number" {...b('d4_2')} className="border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 text-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /><span className="pb-1 text-base print:text-lg font-bold">คน</span></div>
+                        <div className="flex flex-wrap items-end gap-2 mb-2"><span className="pb-1 text-base print:text-lg font-bold">4.2. เป้าหมายจำนวนการสร้างพี่เลี้ยงใหม่:</span><input type="number" {...b('d4_2')} className={`border-b border-orange-300 w-24 text-center focus:outline-none focus:border-orange-600 font-bold bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="pb-1 text-base print:text-lg font-bold">คน</span></div>
                         <span className="block mb-2 pl-6 font-bold text-gray-700 text-base print:text-lg">วิธีการที่ทำให้ไปถึงเป้าหมาย</span>
                         <div className="pl-8 space-y-2 print:space-y-4">
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.2.1.</span><input type="text" {...b('d4_2_1')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.2.2.</span><input type="text" {...b('d4_2_2')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
-                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.2.3.</span><input type="text" {...b('d4_2_3')} className="flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 text-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg" /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.2.1.</span><input type="text" {...b('d4_2_1')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.2.2.</span><input type="text" {...b('d4_2_2')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
+                          <div className="flex items-end gap-3"><span className="pb-1 text-base print:text-lg">4.2.3.</span><input type="text" {...b('d4_2_3')} className={`flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black text-base print:text-lg ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /></div>
                         </div>
                       </div>
                     </div>
@@ -783,28 +888,65 @@ export default function App() {
 
                   <div className="pl-4">
                     <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">5. มิติด้านการอธิษฐานและการนมัสการ (Prayer & Worship)</h3>
-                    <div className="pl-6"><span className="block mb-2 font-bold text-base print:text-lg">5.1. แผนการรณรงค์ให้สมาชิกใน{planningLevel}เข้าร่วมโปรแกรมอธิษฐานให้ได้ 80% ขึ้นไป:</span><textarea {...b('d5_1')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg"></textarea></div>
+                    <div className="pl-6"><span className="block mb-2 font-bold text-base print:text-lg">5.1. แผนการรณรงค์ให้สมาชิกเข้าร่วมโปรแกรมอธิษฐานให้ได้ 80% ขึ้นไป:</span><textarea {...b('d5_1')} className={`w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`}></textarea></div>
                   </div>
 
                   <div className="pl-4">
                     <h3 className="font-bold text-gray-900 mb-3 text-lg print:text-xl">6. มิติด้านความสัมพันธ์ (Relationship - HCRI)</h3>
                     <div className="pl-6 space-y-4 print:space-y-6">
-                      <div><span className="block mb-2 font-bold text-base print:text-lg">6.1. แผนการเยี่ยมเยียนและดูแลกัน (Mutual Care):</span><textarea {...b('d6_1')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg"></textarea></div>
-                      <div><span className="block mb-2 font-bold text-base print:text-lg">6.2. กิจกรรมสร้างความเป็นน้ำหนึ่งใจเดียวกันใน{planningLevel} (Unity & Teamwork):</span><textarea {...b('d6_2')} className="w-full border-2 border-dotted border-orange-300 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 text-orange-700 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg"></textarea></div>
+                      <div><span className="block mb-2 font-bold text-base print:text-lg">6.1. แผนการเยี่ยมเยียนและดูแลกัน (Mutual Care):</span><textarea {...b('d6_1')} className={`w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`}></textarea></div>
+                      <div><span className="block mb-2 font-bold text-base print:text-lg">6.2. กิจกรรมสร้างความเป็นน้ำหนึ่งใจเดียวกัน (Unity & Teamwork):</span><textarea {...b('d6_2')} className={`w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-24 print:h-[120px] transition-colors print:border-gray-400 print:text-black text-base print:text-lg ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`}></textarea></div>
                     </div>
                   </div>
 
                 </div>
 
-                <div className="pt-10 print:hidden">
-                  <button type="submit" disabled={isSavingPlan} className="w-full bg-gradient-to-r from-orange-500 to-rose-500 text-white p-5 rounded-2xl font-black text-xl hover:shadow-xl hover:shadow-orange-200 transition-all transform hover:-translate-y-1 tracking-wide disabled:opacity-70">
-                    {isSavingPlan ? 'กำลังบันทึกข้อมูล...' : 'บันทึกแบบฟอร์มเข้าสู่ระบบ 🚀'}
-                  </button>
-                </div>
+                {/* ✨ ส่วนของปุ่มกดและคอมเมนต์ด้านล่างฟอร์ม */}
+                {isReadOnly ? (
+                   <div className="pt-10 print:hidden space-y-6 border-t-2 border-gray-100 mt-6">
+                      {/* กล่องแสดงข้อเสนอแนะจากเขต (ถ้ามี) */}
+                      {viewingPlan?.feedback && (
+                         <div className="bg-amber-50 p-6 rounded-2xl border border-amber-200">
+                            <h3 className="font-black text-amber-800 text-lg mb-2">💬 ข้อเสนอแนะจากหัวหน้าเขต:</h3>
+                            <p className="text-amber-900 whitespace-pre-wrap font-medium">{viewingPlan.feedback}</p>
+                         </div>
+                      )}
+
+                      {/* กล่องให้เขตพิมพ์ข้อเสนอแนะ */}
+                      {planningLevel === 'เขต' && viewingPlan?.status === 'submitted' && (
+                         <div className="bg-blue-50 p-6 rounded-2xl border border-blue-200 shadow-sm">
+                            <h3 className="font-black text-blue-800 text-lg mb-3">✍️ เพิ่มข้อเสนอแนะให้แขวง:</h3>
+                            <textarea 
+                               value={feedbackInput} 
+                               onChange={e => setFeedbackInput(e.target.value)} 
+                               className="w-full border-2 border-blue-200 p-4 rounded-xl focus:outline-none focus:border-blue-400 min-h-[120px] text-blue-900 font-medium" 
+                               placeholder="พิมพ์คำแนะนำ หรือสิ่งที่อยากให้แขวงเพิ่มเติมที่นี่..."
+                            ></textarea>
+                            <button type="button" onClick={handleSaveFeedback} className="mt-4 bg-blue-600 text-white font-bold py-3 px-6 rounded-xl hover:bg-blue-700 transition shadow-sm w-full md:w-auto">
+                               ✅ ส่งข้อเสนอแนะ & อนุมัติแผนงาน
+                            </button>
+                         </div>
+                      )}
+
+                      <div className="flex flex-col md:flex-row gap-4 pt-4">
+                         <button type="button" onClick={() => window.print()} className="w-full md:w-1/2 bg-orange-100 text-orange-700 font-bold py-4 rounded-xl hover:bg-orange-200 transition">🖨 ปริ้นแผนงานนี้ (PDF)</button>
+                         <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">❌ ปิดหน้าต่างนี้</button>
+                      </div>
+                   </div>
+                ) : (
+                   <div className="pt-10 print:hidden flex flex-col md:flex-row gap-4 border-t-2 border-gray-100 mt-6">
+                      <button type="button" onClick={() => handleSavePlan('draft')} disabled={isSavingPlan} className="md:w-1/3 bg-gray-100 text-gray-700 p-5 rounded-2xl font-black text-xl hover:bg-gray-200 transition-all border-2 border-gray-200 disabled:opacity-70">
+                         {isSavingPlan ? 'กำลังบันทึก...' : '💾 บันทึกฉบับร่าง'}
+                      </button>
+                      <button type="button" onClick={() => handleSavePlan('submitted')} disabled={isSavingPlan} className="md:w-2/3 bg-gradient-to-r from-orange-500 to-rose-500 text-white p-5 rounded-2xl font-black text-xl hover:shadow-xl transition-all disabled:opacity-70 transform hover:-translate-y-1">
+                         {isSavingPlan ? 'กำลังส่งข้อมูล...' : '🚀 ส่งแผนงานให้เขต (ล็อกการแก้ไข)'}
+                      </button>
+                   </div>
+                )}
               </form>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Modal เพิ่มสถิติ (ซ่อนตอนปริ้น) */}
         {isAttModalOpen && (
