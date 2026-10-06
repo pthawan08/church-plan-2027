@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE (Save Draft + Review Workflow + 4 Pillars)
+// ✨ VERSION: ULTIMATE WORKFLOW (Zone Review + Auto-Aggregation + 4 Pillars)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -42,7 +42,7 @@ export default function App() {
     role: '', unit: '', cell: '', zone: '', kwang: ''
   })
 
-  // ✨ State ใหม่สำหรับระบบ Workflow
+  // ✨ State สำหรับระบบ Workflow และการตรวจแผน
   const [myPlans, setMyPlans] = useState([])
   const [viewingPlan, setViewingPlan] = useState(null)
   const [isReadOnly, setIsReadOnly] = useState(false)
@@ -132,7 +132,6 @@ export default function App() {
     } else { setUserName(''); }
   }, [availableUsers, selectedArea]);
 
-  // ✨ อัปเดตฟังก์ชันดึงข้อมูลให้รีเทิร์นค่ากลับไปใช้ต่อ
   const fetchMembers = async (level, area) => {
     let query = supabase.from('members').select('*').order('id', { ascending: true });
     if (level !== 'คริสตจักร') {
@@ -163,23 +162,35 @@ export default function App() {
     setAttendanceData(chartData)
   }
 
-  // ✨ ฟังก์ชันใหม่! ดึงประวัติแผนงาน
   const fetchPlans = async (level, area, memData) => {
     const { data, error } = await supabase.from('church_plans').select('*').order('id', { ascending: false });
     if (error || !data) return;
     
     if (level === 'แขวง') {
-      // แขวงเห็นแค่แผนของตัวเอง
       setMyPlans(data.filter(p => p.level === 'แขวง' && p.area === area));
     } else if (level === 'เขต') {
-      // เขตเห็นแผนของทุกแขวงที่อยู่ในเขตตัวเอง
       const kwangsInZone = [...new Set(memData.filter(m => m.Zone?.trim() === area).map(m => m['แขวง']?.trim()).filter(Boolean))];
       setMyPlans(data.filter(p => p.level === 'แขวง' && kwangsInZone.includes(p.area?.trim())));
     } else {
-      // คริสตจักรเห็นหมด
       setMyPlans(data);
     }
   }
+
+  // ✨ ระบบรวมตัวเลขอัตโนมัติสำหรับ "เขต"
+  const zoneAggregated = useMemo(() => {
+    if (planningLevel !== 'เขต') return null;
+    let t_mem=0, t_cell=0, t_lead=0, t_men=0;
+    // รวมเฉพาะแผนที่แขวงกด "ส่งแล้ว" หรือ "เขตตรวจแล้ว"
+    myPlans.filter(p => p.status === 'submitted' || p.status === 'reviewed' || !p.status).forEach(p => {
+       if (p.plan_data) {
+          t_mem += Number(p.plan_data.t_mem || 0);
+          t_cell += Number(p.plan_data.t_cell || 0);
+          t_lead += Number(p.plan_data.t_lead || 0);
+          t_men += Number(p.plan_data.t_men || 0);
+       }
+    });
+    return { t_mem, t_cell, t_lead, t_men };
+  }, [myPlans, planningLevel]);
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -240,7 +251,6 @@ export default function App() {
     } catch (error) { console.error('Batch error:', error); alert('❌ บันทึกสถิติไม่สำเร็จ: ' + error.message) } finally { setIsSavingAtt(false) }
   }
 
-  // ✨ ระบบบันทึกแผนงานแบบใหม่ (มี Draft และ Submit)
   const handleSavePlan = async (statusToSave) => {
     setIsSavingPlan(true);
     try {
@@ -277,7 +287,6 @@ export default function App() {
     }
   }
 
-  // ✨ ระบบหัวหน้าเขตส่งข้อเสนอแนะกลับให้แขวง
   const handleSaveFeedback = async () => {
     try {
       await supabase.from('church_plans').update({ status: 'reviewed', feedback: feedbackInput }).eq('id', viewingPlan.id);
@@ -548,7 +557,7 @@ export default function App() {
             )}
           </div>
 
-          {/* ✨ นี่ไงครับ! กล่อง 4 เสาหลัก โผล่มาชัวร์ๆ โชว์ต่อจากกล่องสรุปสมาชิกด้านบน (เฉพาะระดับคริสตจักร) */}
+          {/* ✨ กล่อง 4 เสาหลัก โชว์เฉพาะระดับคริสตจักร */}
           {planningLevel === 'คริสตจักร' && (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200 mt-6 print:break-inside-avoid">
               <div className="text-center mb-8 print:mb-6">
@@ -593,18 +602,20 @@ export default function App() {
             </div>
           )}
 
-          {/* ✨ ระบบแสดงตารางประวัติการส่งแผนงาน (เฉพาะระดับแขวงและเขต) */}
+          {/* ✨ ระบบตารางแสดงประวัติแผนงาน (แขวง/เขต) */}
           {(planningLevel === 'แขวง' || planningLevel === 'เขต') && myPlans.length > 0 && (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
-              <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3 mb-6"><span className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">📋</span> ประวัติแผนงาน 6 มิติ</h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3"><span className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">📋</span> {planningLevel === 'เขต' ? 'สถานะแผนงานของแขวงในเขต' : 'ประวัติแผนงานของแขวง'}</h2>
+              </div>
               <div className="overflow-x-auto rounded-xl border border-gray-100">
                 <table className="w-full text-left border-collapse whitespace-nowrap">
                    <thead className="bg-gray-50 text-gray-600 text-sm">
                       <tr>
-                        <th className="p-4 font-bold border-b border-gray-100">วันที่สร้าง</th>
-                        <th className="p-4 font-bold border-b border-gray-100">แขวงที่ส่ง</th>
-                        <th className="p-4 font-bold border-b border-gray-100">ผู้จัดทำ</th>
-                        <th className="p-4 font-bold border-b border-gray-100">สถานะการตรวจ</th>
+                        <th className="p-4 font-bold border-b border-gray-100">วันที่ส่งแผน</th>
+                        <th className="p-4 font-bold border-b border-gray-100">แขวง</th>
+                        <th className="p-4 font-bold border-b border-gray-100">ผู้รับผิดชอบ</th>
+                        <th className="p-4 font-bold border-b border-gray-100">สถานะ</th>
                         <th className="p-4 font-bold border-b border-gray-100 text-center">จัดการ</th>
                       </tr>
                    </thead>
@@ -617,14 +628,14 @@ export default function App() {
                            <td className="p-4">
                               {p.status === 'draft' && <span className="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-full text-xs font-black">📝 บันทึกร่าง</span>}
                               {p.status === 'submitted' && <span className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black border border-blue-200">⏳ รอเขตตรวจ</span>}
-                              {p.status === 'reviewed' && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ตรวจแล้ว</span>}
-                              {!p.status && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ส่งแล้ว (เวอร์ชันเก่า)</span>}
+                              {p.status === 'reviewed' && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ เขตตรวจแล้ว</span>}
+                              {!p.status && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ส่งแล้ว (V1)</span>}
                            </td>
                            <td className="p-4 text-center">
                               {planningLevel === 'แขวง' && p.status === 'draft' ? (
                                  <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(false); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-orange-600 font-bold text-sm bg-orange-50 px-5 py-2 rounded-xl hover:bg-orange-100 transition shadow-sm">แก้ไขต่อ ✏️</button>
                               ) : planningLevel === 'เขต' && p.status === 'submitted' ? (
-                                 <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-5 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">ตรวจ/แนะนำ 💬</button>
+                                 <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-5 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">ตรวจ / แนะนำ 💬</button>
                               ) : (
                                  <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-gray-600 font-bold text-sm bg-gray-100 px-5 py-2 rounded-xl hover:bg-gray-200 transition shadow-sm">ดูข้อมูล 📄</button>
                               )}
@@ -637,6 +648,39 @@ export default function App() {
             </div>
           )}
 
+          {/* ✨ กล่องใหม่สำหรับเขต: สรุปเป้าหมายรวมของเขต (ดึงข้อมูลอัตโนมัติจากที่แขวงส่งมา) */}
+          {planningLevel === 'เขต' && !viewingPlan && (
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 md:p-10 rounded-3xl shadow-sm border border-blue-100 mt-6 print:break-before-page">
+              <div className="text-center mb-8">
+                 <span className="bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-black border border-indigo-200 mb-4 inline-block">สรุปภาพรวมระดับเขต</span>
+                 <h2 className="text-2xl md:text-3xl font-black text-indigo-900">เป้าหมายรวมของ {selectedArea} ปี 2027</h2>
+                 <p className="text-indigo-700 font-medium mt-2">(รวบรวมตัวเลขอัตโนมัติจากแผนงานที่แขวงส่งมาแล้ว)</p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center">
+                    <p className="text-indigo-600 font-bold text-sm mb-1">เป้าหมายสมาชิกรวม</p>
+                    <p className="text-4xl font-black text-indigo-900">{zoneAggregated?.t_mem || 0} <span className="text-sm font-bold text-indigo-400">คน</span></p>
+                 </div>
+                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center">
+                    <p className="text-indigo-600 font-bold text-sm mb-1">เซลล์ใหม่รวม</p>
+                    <p className="text-4xl font-black text-indigo-900">{zoneAggregated?.t_cell || 0} <span className="text-sm font-bold text-indigo-400">กลุ่ม</span></p>
+                 </div>
+                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center">
+                    <p className="text-indigo-600 font-bold text-sm mb-1">หนซ. ใหม่รวม</p>
+                    <p className="text-4xl font-black text-indigo-900">{zoneAggregated?.t_lead || 0} <span className="text-sm font-bold text-indigo-400">คน</span></p>
+                 </div>
+                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center">
+                    <p className="text-indigo-600 font-bold text-sm mb-1">พี่เลี้ยงใหม่รวม</p>
+                    <p className="text-4xl font-black text-indigo-900">{zoneAggregated?.t_men || 0} <span className="text-sm font-bold text-indigo-400">คน</span></p>
+                 </div>
+              </div>
+              {myPlans.length === 0 && (
+                 <p className="text-center text-indigo-400 font-bold mt-6">ยังไม่มีแขวงใดส่งแผนงานเข้ามาในระบบ</p>
+              )}
+            </div>
+          )}
+
+          {/* สถิติการมาร่วม (กราฟ) */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white print:shadow-none print:border-gray-200 mt-6 print:break-before-page">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div className="flex items-center gap-4">
@@ -748,7 +792,7 @@ export default function App() {
         </div>
 
         {/* --- 📄 หน้าที่ X: ฟอร์มแผนงาน 6 มิติ (โชว์เมื่อเป็นระดับแขวง หรือตอนเขตกดเข้ามาตรวจ) --- */}
-        {(planningLevel === 'แขวง' || (planningLevel === 'เขต' && viewingPlan)) && (
+        {(planningLevel === 'แขวง' || viewingPlan) && (
           <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0 print-enlarge-text">
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
               
@@ -766,7 +810,7 @@ export default function App() {
                         <div className="flex items-end gap-3"><span className="whitespace-nowrap">ผู้รับผิดชอบ:</span><span className="border-b-2 border-dotted border-orange-300 w-64 text-center font-bold text-orange-600 pb-1">{viewingPlan ? viewingPlan.reporter : userName}</span></div>
                       </div>
                     </div>
-                    {/* ปุ่มสำหรับล้างฟอร์มเพื่อสร้างแผนใหม่ (ถ้ากำลังดูอันเก่าอยู่) */}
+                    {/* ปุ่มสำหรับล้างฟอร์มเพื่อสร้างแผนใหม่ (ถ้าแขวงกำลังดูอันเก่าอยู่) */}
                     {viewingPlan && planningLevel === 'แขวง' && (
                        <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="text-sm bg-gray-100 hover:bg-gray-200 px-5 py-3 rounded-xl font-bold text-gray-700 transition shadow-sm print:hidden">
                          + สร้างฉบับร่างใหม่
