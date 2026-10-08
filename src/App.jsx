@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V6 (Compact Print Layout + Smart Target Saving)
+// ✨ VERSION: ULTIMATE V7 (Smart Page Break for Printing)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -499,7 +499,7 @@ export default function App() {
     )
   }
 
-  // ✨ หน้า Dashboard หลัก (ปรับ CSS Print Layout ให้ประหยัดกระดาษ)
+  // ✨ หน้า Dashboard หลัก (เพิ่ม CSS สั่งห้ามเบราว์เซอร์ตัดหน้ากระดาษมั่วซั่ว)
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8 relative print:bg-white print:bg-none print:p-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
@@ -509,15 +509,25 @@ export default function App() {
             @page { size: A4 portrait; margin: 10mm; }
             html, body { 
               width: 100% !important; 
-              font-size: 12pt !important;
+              font-size: 11pt !important;
               color: black !important;
+            }
+            /* บังคับไม่ให้ตัดตาราง กราฟ และกล่องข้อความที่มีคลาส avoid-page-break ขาดครึ่ง */
+            table, tr, thead, tbody, .avoid-page-break {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            /* บังคับไม่ให้หัวข้อถูกทิ้งไว้โดดๆ ที่ท้ายกระดาษ */
+            h2, h3, h4 {
+              page-break-after: avoid !important;
+              break-after: avoid !important;
             }
           }
         `}</style>
 
         <div className="max-w-6xl mx-auto space-y-6 print:space-y-4 print:max-w-full print:w-full print:px-0">
           
-          <div className="hidden print:flex justify-between items-center border-b-2 border-orange-500 pb-4 mb-4">
+          <div className="hidden print:flex justify-between items-center border-b-2 border-orange-500 pb-4 mb-4 avoid-page-break">
             <div>
               <h1 className="text-2xl font-black text-gray-900">ระบบวางแผน ปี 2027</h1>
               <p className="text-sm text-gray-600 font-bold mt-1">ระดับ{planningLevel === 'คริสตจักร' ? 'คริสตจักรแห่งนิมิตพิษณุโลก' : `${planningLevel}: ${selectedArea}`}</p>
@@ -552,7 +562,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className={`grid grid-cols-1 ${planningLevel === 'แขวง' ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4 md:gap-6 print:gap-2`}>
+          <div className={`grid grid-cols-1 ${planningLevel === 'แขวง' ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4 md:gap-6 print:gap-2 avoid-page-break`}>
             <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
               <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">สมาชิกทั้งหมด</h3>
               <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{members.length} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">คน</span></p>
@@ -583,7 +593,7 @@ export default function App() {
 
           {/* กล่อง 4 เสาหลัก */}
           {planningLevel === 'คริสตจักร' && (
-            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:break-inside-avoid print:p-2 print:mt-4 print:border-none print:shadow-none">
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:p-2 print:mt-4 print:border-none print:shadow-none">
               <div className="text-center mb-8 print:mb-4">
                 <h2 className="text-2xl md:text-3xl font-black text-amber-800 print:text-lg print:text-black">สรุปภาพรวมคริสตจักรแห่งนิมิตพิษณุโลก</h2>
               </div>
@@ -671,7 +681,7 @@ export default function App() {
 
           {/* สรุปเป้าหมายรวมของเขต */}
           {planningLevel === 'เขต' && !viewingPlan && (
-            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 md:p-10 rounded-3xl shadow-sm border border-blue-100 mt-6 print:p-4 print:border-gray-300 print:shadow-none print:mt-4 print:break-inside-avoid">
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 md:p-10 rounded-3xl shadow-sm border border-blue-100 mt-6 avoid-page-break print:p-4 print:border-gray-300 print:shadow-none print:mt-4">
               <div className="text-center mb-8 print:mb-4">
                  <h2 className="text-2xl md:text-3xl font-black text-indigo-900 print:text-lg">เป้าหมายรวมของ {selectedArea} ปี 2027</h2>
                  <p className="text-indigo-700 font-medium mt-2 print:text-xs">(รวบรวมตัวเลขอัตโนมัติจากแผนงานที่แขวงส่งมาแล้ว)</p>
@@ -698,7 +708,7 @@ export default function App() {
           )}
 
           {/* สถิติการมาร่วม (กราฟ) */}
-          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:p-0 print:border-none print:shadow-none print:mt-4 print:break-inside-avoid">
+          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:p-0 print:border-none print:shadow-none print:mt-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3">
@@ -759,7 +769,7 @@ export default function App() {
         {/* --- ตารางสรุปสมาชิกคริสตจักร / รายชื่อสมาชิก --- */}
         <div className="max-w-6xl mx-auto print:mt-4">
           {planningLevel === 'คริสตจักร' ? (
-            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:shadow-none print:border-none print:p-0 print:mt-4">
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:shadow-none print:border-none print:p-0 print:mt-4">
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3 mb-6 print:text-lg print:mb-3"><span className="bg-purple-100 text-purple-600 p-2.5 rounded-xl print:hidden">📈</span> สรุปข้อมูลแยกตามเขต</h2>
               <div className="overflow-x-auto print:overflow-visible border border-gray-100 rounded-2xl print:border-gray-400 print:rounded-none">
                 <table className="w-full text-center border-collapse whitespace-nowrap">
@@ -783,7 +793,7 @@ export default function App() {
               </div>
               <div className="overflow-auto max-h-[500px] print:max-h-none print:overflow-visible pr-2 space-y-6 print:space-y-4">
                 {sortedCells.map(cellName => (
-                  <div key={cellName} className="border border-gray-100 print:border-gray-400 rounded-2xl overflow-hidden shadow-sm print:shadow-none print:rounded-none print:break-inside-avoid">
+                  <div key={cellName} className="avoid-page-break border border-gray-100 print:border-gray-400 rounded-2xl overflow-hidden shadow-sm print:shadow-none print:rounded-none">
                     <div className="bg-slate-50 print:bg-gray-100 border-b border-gray-100 print:border-gray-400 p-3 flex justify-between items-center"><h3 className="font-black text-slate-700 text-base print:text-sm flex items-center gap-2"><span className="text-sky-500 print:hidden">❖</span> กลุ่ม: {cellName}</h3><span className="bg-white text-sky-600 text-xs font-bold px-3 py-1 rounded-full border border-sky-100 print:border-gray-300 shadow-sm print:shadow-none print:text-black">{groupedMembers[cellName].length} คน</span></div>
                     <div className="overflow-x-auto print:overflow-visible">
                       <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -804,7 +814,7 @@ export default function App() {
           )}
         </div>
 
-        {/* --- แบบฟอร์ม 6 มิติ (ตัดคลาสขยายใหญ่และบังคับตัดหน้าทิ้ง) --- */}
+        {/* --- แบบฟอร์ม 6 มิติ --- */}
         {(planningLevel === 'แขวง' || viewingPlan) && (
           <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0">
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
@@ -812,7 +822,7 @@ export default function App() {
               <form onSubmit={(e) => e.preventDefault()} className="text-gray-900">
                 
                 <div className="pb-4">
-                  <div className="mb-8 pb-4 border-b-2 border-orange-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:mb-4 print:pb-2 print:border-black">
+                  <div className="mb-8 pb-4 border-b-2 border-orange-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:mb-4 print:pb-2 print:border-black avoid-page-break">
                     <div>
                       <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4 print:text-xl print:mb-2 flex items-center gap-3">
                          แบบฟอร์มวางแผนรับใช้ 6 มิติ 
@@ -824,7 +834,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="print:break-inside-avoid">
+                  <div className="avoid-page-break">
                     <h2 className="text-xl print:text-lg font-bold mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm print:border print:border-black print:bg-white print:text-black">1</span> เป้าหมายตัวเลขของ{viewingPlan ? viewingPlan.level : planningLevel}ในปี 2027</h2>
                     <div className="overflow-x-auto rounded-xl border border-orange-200 bg-white print:border-gray-400 print:rounded-none">
                       <table className="w-full border-collapse text-base print:text-sm">
@@ -857,7 +867,7 @@ export default function App() {
                 <div className="space-y-8 pt-6 text-base leading-relaxed text-gray-800 print:pt-4 print:space-y-6 print:text-sm">
                   <h2 className="text-xl print:text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><span className="bg-gray-800 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm print:border print:border-black print:bg-white print:text-black">2</span> การวางแผนตาม 6 มิติการขับเคลื่อนคริสตจักร</h2>
                   
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4 avoid-page-break">
                     <h3 className="font-bold text-gray-900 mb-2 text-lg print:text-base">1. มิติด้านการเจริญเติบโตด้านปริมาณ (Quantitative Growth)</h3>
                     <div className="pl-6 space-y-2 print:space-y-2">
                       <div className="flex flex-wrap items-end gap-2"><span className="pb-1">1.1. เป้าหมายจำนวนสมาชิกที่เพิ่มขึ้นในปี 2027:</span><input type="number" {...b('d1_1')} className={`border-b border-orange-300 w-20 text-center focus:outline-none focus:border-orange-600 bg-transparent font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`} /><span className="pb-1">คน</span></div>
@@ -866,7 +876,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4 avoid-page-break">
                     <h3 className="font-bold text-gray-900 mb-2 text-lg print:text-base">2. มิติด้านการพัฒนาสมาชิกให้มีคุณภาพ (Developing High Quality Member Resources)</h3>
                     <div className="pl-6 space-y-4 print:space-y-3">
                       <div>
@@ -888,7 +898,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4 avoid-page-break">
                     <h3 className="font-bold text-gray-900 mb-2 text-lg print:text-base">3. มิติด้านการบุกเบิกคริสตจักร กลุ่ม Cell และพันธกิจใหม่</h3>
                     <div className="pl-6 space-y-4 print:space-y-3">
                       <div>
@@ -912,7 +922,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4 avoid-page-break">
                     <h3 className="font-bold text-gray-900 mb-2 text-lg print:text-base">4. มิติด้านการพัฒนาผู้นำและเสริมสร้างขีดความสามารถ (Leadership Capacity)</h3>
                     <div className="pl-6 space-y-4 print:space-y-3">
                       <div>
@@ -936,12 +946,12 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4 avoid-page-break">
                     <h3 className="font-bold text-gray-900 mb-2 text-lg print:text-base">5. มิติด้านการอธิษฐานและการนมัสการ (Prayer & Worship)</h3>
                     <div className="pl-6"><span className="block mb-2 font-bold">5.1. แผนการรณรงค์ให้สมาชิกเข้าร่วมโปรแกรมอธิษฐานให้ได้ 80% ขึ้นไป:</span><textarea {...b('d5_1')} className={`w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-20 print:h-auto print:min-h-[60px] transition-colors print:border-gray-400 print:text-black print:rounded-none print:p-2 ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`}></textarea></div>
                   </div>
 
-                  <div className="pl-4 print:break-inside-avoid">
+                  <div className="pl-4 avoid-page-break">
                     <h3 className="font-bold text-gray-900 mb-2 text-lg print:text-base">6. มิติด้านความสัมพันธ์ (Relationship - HCRI)</h3>
                     <div className="pl-6 space-y-4 print:space-y-3">
                       <div><span className="block mb-2 font-bold">6.1. แผนการเยี่ยมเยียนและดูแลกัน (Mutual Care):</span><textarea {...b('d6_1')} className={`w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-20 print:h-auto print:min-h-[60px] transition-colors print:border-gray-400 print:text-black print:rounded-none print:p-2 ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`}></textarea></div>
