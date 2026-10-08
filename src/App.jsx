@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V7 (Smart Page Break for Printing)
+// ✨ VERSION: ULTIMATE V8 (Perfect Print Layout Fix)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -398,6 +398,10 @@ export default function App() {
     return { zone, members: zMembers.length, kwangs: kCount, units: uCount, cells: cCount };
   });
 
+  const getGridColsClass = () => {
+    return planningLevel === 'แขวง' ? 'md:grid-cols-3 print:grid-cols-3' : 'md:grid-cols-4 print:grid-cols-4';
+  };
+
   if (currentView === 'login') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 flex flex-col items-center justify-center p-4">
@@ -499,11 +503,12 @@ export default function App() {
     )
   }
 
-  // ✨ หน้า Dashboard หลัก (เพิ่ม CSS สั่งห้ามเบราว์เซอร์ตัดหน้ากระดาษมั่วซั่ว)
+  // ✨ หน้า Dashboard หลัก
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8 relative print:bg-white print:bg-none print:p-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
         
+        {/* ✨ CSS โหมด Print ฉบับแก้บัคหน้ากระดาษทะลัก */}
         <style>{`
           @media print {
             @page { size: A4 portrait; margin: 10mm; }
@@ -512,10 +517,13 @@ export default function App() {
               font-size: 11pt !important;
               color: black !important;
             }
-            /* บังคับไม่ให้ตัดตาราง กราฟ และกล่องข้อความที่มีคลาส avoid-page-break ขาดครึ่ง */
-            table, tr, thead, tbody, .avoid-page-break {
+            .avoid-page-break {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+            }
+            .force-new-page {
+              page-break-before: always !important;
+              break-before: page !important;
             }
             /* บังคับไม่ให้หัวข้อถูกทิ้งไว้โดดๆ ที่ท้ายกระดาษ */
             h2, h3, h4 {
@@ -562,7 +570,8 @@ export default function App() {
             </div>
           </div>
 
-          <div className={`grid grid-cols-1 ${planningLevel === 'แขวง' ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4 md:gap-6 print:gap-2 avoid-page-break`}>
+          {/* ✨ แก้ไขบัคหน้าปริ้นกล่องสรุปให้เป็นแนวนอนเสมอ */}
+          <div className={`grid grid-cols-1 ${getGridColsClass()} gap-4 md:gap-6 print:gap-2 avoid-page-break`}>
             <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
               <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">สมาชิกทั้งหมด</h3>
               <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{members.length} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">คน</span></p>
@@ -597,7 +606,7 @@ export default function App() {
               <div className="text-center mb-8 print:mb-4">
                 <h2 className="text-2xl md:text-3xl font-black text-amber-800 print:text-lg print:text-black">สรุปภาพรวมคริสตจักรแห่งนิมิตพิษณุโลก</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 print:gap-2 mt-12 print:mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 print:grid-cols-2 print:gap-2 mt-12 print:mt-4">
                 <div className="bg-[#fef3c7] rounded-3xl p-6 flex flex-col items-center text-center shadow-sm print:border print:border-gray-300 print:p-2 print:rounded-xl">
                   <h3 className="bg-[#d97706] text-white px-6 py-2 rounded-full text-xl font-black shadow-md -mt-10 mb-4 border-4 border-white print:-mt-4 print:text-sm print:border-2">คริสตจักร (CH)</h3>
                   <div className="text-6xl mb-2 print:hidden">⛪</div>
@@ -626,67 +635,14 @@ export default function App() {
             </div>
           )}
 
-          {/* ระบบตารางแสดงประวัติแผนงาน */}
-          {(planningLevel === 'แขวง' || planningLevel === 'เขต') && (
-            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3"><span className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">📋</span> {planningLevel === 'เขต' ? 'สถานะแผนงานของแขวงในเขต' : 'ประวัติแผนงานของแขวง'}</h2>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="w-full text-left border-collapse whitespace-nowrap">
-                   <thead className="bg-gray-50 text-gray-600 text-sm">
-                      <tr>
-                        <th className="p-4 font-bold border-b border-gray-100">วันที่ส่งแผน</th>
-                        <th className="p-4 font-bold border-b border-gray-100">ชื่อแขวง</th>
-                        <th className="p-4 font-bold border-b border-gray-100">ผู้รับผิดชอบ</th>
-                        <th className="p-4 font-bold border-b border-gray-100">สถานะ</th>
-                        <th className="p-4 font-bold border-b border-gray-100 text-center">จัดการ</th>
-                      </tr>
-                   </thead>
-                   <tbody>
-                      {myPlans.length > 0 ? myPlans.map(p => (
-                         <tr key={p.id} className="border-b border-gray-50 hover:bg-slate-50 transition-colors">
-                           <td className="p-4 text-sm font-medium text-gray-600">{new Date(p.created_at || Date.now()).toLocaleDateString('th-TH')}</td>
-                           <td className="p-4 font-black text-gray-800 text-base">{p.area}</td>
-                           <td className="p-4 text-sm text-gray-600">{p.reporter}</td>
-                           <td className="p-4">
-                              {p.status === 'draft' && <span className="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-full text-xs font-black">📝 บันทึกร่าง</span>}
-                              {p.status === 'submitted' && <span className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black border border-blue-200">⏳ รอเขตตรวจ</span>}
-                              {p.status === 'reviewed' && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ เขตตรวจแล้ว</span>}
-                              {!p.status && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ส่งแล้ว (V1)</span>}
-                           </td>
-                           <td className="p-4 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                {planningLevel === 'แขวง' && p.status === 'draft' ? (
-                                   <>
-                                      <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(false); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition shadow-sm">แก้ไขต่อ ✏️</button>
-                                      <button onClick={() => handleDeletePlan(p.id)} className="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 transition shadow-sm">ลบ 🗑</button>
-                                   </>
-                                ) : planningLevel === 'เขต' && p.status === 'submitted' ? (
-                                   <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-5 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">ตรวจ / แนะนำ 💬</button>
-                                ) : (
-                                   <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-gray-600 font-bold text-sm bg-gray-100 px-5 py-2 rounded-xl hover:bg-gray-200 transition shadow-sm">ดูข้อมูล 📄</button>
-                                )}
-                              </div>
-                           </td>
-                         </tr>
-                      )) : (
-                         <tr><td colSpan="5" className="p-8 text-center text-gray-400 font-bold text-lg">ยังไม่มีข้อมูลแผนงานในระบบ</td></tr>
-                      )}
-                   </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
           {/* สรุปเป้าหมายรวมของเขต */}
           {planningLevel === 'เขต' && !viewingPlan && (
             <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 md:p-10 rounded-3xl shadow-sm border border-blue-100 mt-6 avoid-page-break print:p-4 print:border-gray-300 print:shadow-none print:mt-4">
               <div className="text-center mb-8 print:mb-4">
+                 <span className="bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-black border border-indigo-200 mb-4 inline-block print:border-none print:bg-transparent print:p-0">สรุปภาพรวมระดับเขต</span>
                  <h2 className="text-2xl md:text-3xl font-black text-indigo-900 print:text-lg">เป้าหมายรวมของ {selectedArea} ปี 2027</h2>
-                 <p className="text-indigo-700 font-medium mt-2 print:text-xs">(รวบรวมตัวเลขอัตโนมัติจากแผนงานที่แขวงส่งมาแล้ว)</p>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center print:border-gray-200 print:p-2">
                     <p className="text-indigo-600 font-bold text-sm mb-1 print:text-xs">สมาชิกรวม</p>
                     <p className="text-4xl font-black text-indigo-900 print:text-lg">{zoneAggregated?.t_mem || 0} <span className="text-sm font-bold text-indigo-400 print:text-xs">คน</span></p>
@@ -707,7 +663,7 @@ export default function App() {
             </div>
           )}
 
-          {/* สถิติการมาร่วม (กราฟ) */}
+          {/* ✨ สถิติการมาร่วม (กราฟ) ซ่อนในโหมดพิมพ์หรือจัดกรอบให้พอดี */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:p-0 print:border-none print:shadow-none print:mt-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div className="flex items-center gap-4">
@@ -740,7 +696,8 @@ export default function App() {
               </div>
             </div>
             
-            <div className="h-[450px] w-full mt-4 print:h-[200px]">
+            {/* ปรับไม่ให้กราฟทะลุไปทับชาวบ้านตอนปริ้น */}
+            <div className="h-[450px] w-full mt-4 print:h-[250px] print:overflow-hidden print:mb-6">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
@@ -814,9 +771,9 @@ export default function App() {
           )}
         </div>
 
-        {/* --- แบบฟอร์ม 6 มิติ --- */}
+        {/* --- ✨ แบบฟอร์ม 6 มิติ (บังคับขึ้นหน้าใหม่เสมอเพื่อความสวยงามและไม่ทับกับรายชื่อสมาชิก) --- */}
         {(planningLevel === 'แขวง' || viewingPlan) && (
-          <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0">
+          <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0 force-new-page">
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
               
               <form onSubmit={(e) => e.preventDefault()} className="text-gray-900">
