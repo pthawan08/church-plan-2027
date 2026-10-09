@@ -387,24 +387,6 @@ export default function App() {
     return planningLevel === 'แขวง' ? 'md:grid-cols-3 print:grid-cols-3' : 'md:grid-cols-4 print:grid-cols-4';
   };
 
-  // ✨ PRINT FIX: BarChart content ที่ใช้ร่วมกันทั้ง 2 mode
-  const BarChartContent = () => (
-    <>
-      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-      <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} />
-      <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
-      <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
-      <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30}>
-        <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={10} offset={5} />
-      </Bar>
-      <defs>
-        <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ef4444" stopOpacity={1}/>
-          <stop offset="100%" stopColor="#f97316" stopOpacity={1}/>
-        </linearGradient>
-      </defs>
-    </>
-  );
 
   // ─────────────────────────────────────────────────────────────
   // VIEW: LOGIN
@@ -744,12 +726,36 @@ export default function App() {
               {attendanceData.length > 0 ? (
                 isPrinting ? (
                   <BarChart width={680} height={280} data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
-                    <BarChartContent />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} />
+                    <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
+                    <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30}>
+                      <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={10} offset={5} />
+                    </Bar>
+                    <defs>
+                      <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ef4444" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#f97316" stopOpacity={1}/>
+                      </linearGradient>
+                    </defs>
                   </BarChart>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
-                      <BarChartContent />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} />
+                      <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
+                      <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30}>
+                        <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={10} offset={5} />
+                      </Bar>
+                      <defs>
+                        <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ef4444" stopOpacity={1}/>
+                          <stop offset="100%" stopColor="#f97316" stopOpacity={1}/>
+                        </linearGradient>
+                      </defs>
                     </BarChart>
                   </ResponsiveContainer>
                 )
