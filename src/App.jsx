@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V9 (Full Recovery + Smart Print + Clean Code)
+// ✨ VERSION: ULTIMATE V10 (Final Fix - ตัวแปรครบถ้วน + กู้คืนฟอร์ม)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -50,6 +50,11 @@ export default function App() {
   
   const [isSavingPlan, setIsSavingPlan] = useState(false)
   const [planForm, setPlanForm] = useState(defaultPlanForm)
+
+  // ✨ ตัวแปรยุบรวมคลาส CSS ป้องกันโค้ดโดนตัดจบ (ประกาศตรงนี้ให้ระบบรู้จัก)
+  const iCls = `flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
+  const nCls = `w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
+  const tCls = `w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-20 print:h-auto print:min-h-[60px] transition-colors print:border-gray-400 print:text-black print:rounded-none print:p-2 ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`;
 
   const b = (f) => ({ 
     value: planForm[f] || '', 
@@ -398,11 +403,6 @@ export default function App() {
     return { zone, members: zMembers.length, kwangs: kCount, units: uCount, cells: cCount };
   });
 
-  // ✨ ตัวแปรยุบรวมคลาส CSS สำหรับช่องกรอกข้อมูล (ช่วยย่อโค้ดให้สั้นลงป้องกันระบบตัดจบ)
-  const iCls = `flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
-  const nCls = `w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
-  const tCls = `w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-20 print:h-auto print:min-h-[60px] transition-colors print:border-gray-400 print:text-black print:rounded-none print:p-2 ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`;
-
   const getGridColsClass = () => {
     return planningLevel === 'แขวง' ? 'md:grid-cols-3 print:grid-cols-3' : 'md:grid-cols-4 print:grid-cols-4';
   };
@@ -636,58 +636,59 @@ export default function App() {
             </div>
           )}
 
-          {/* ระบบตารางแสดงประวัติแผนงาน */}
-          {(planningLevel === 'แขวง' || planningLevel === 'เขต') && (
-            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3"><span className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">📋</span> {planningLevel === 'เขต' ? 'สถานะแผนงานของแขวงในเขต' : 'ประวัติแผนงานของแขวง'}</h2>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="w-full text-left border-collapse whitespace-nowrap">
-                   <thead className="bg-gray-50 text-gray-600 text-sm">
-                      <tr>
-                        <th className="p-4 font-bold border-b border-gray-100">วันที่ส่งแผน</th>
-                        <th className="p-4 font-bold border-b border-gray-100">ชื่อแขวง</th>
-                        <th className="p-4 font-bold border-b border-gray-100">ผู้รับผิดชอบ</th>
-                        <th className="p-4 font-bold border-b border-gray-100">สถานะ</th>
-                        <th className="p-4 font-bold border-b border-gray-100 text-center">จัดการ</th>
-                      </tr>
-                   </thead>
-                   <tbody>
-                      {myPlans.length > 0 ? myPlans.map(p => (
-                         <tr key={p.id} className="border-b border-gray-50 hover:bg-slate-50 transition-colors">
-                           <td className="p-4 text-sm font-medium text-gray-600">{new Date(p.created_at || Date.now()).toLocaleDateString('th-TH')}</td>
-                           <td className="p-4 font-black text-gray-800 text-base">{p.area}</td>
-                           <td className="p-4 text-sm text-gray-600">{p.reporter}</td>
-                           <td className="p-4">
-                              {p.status === 'draft' && <span className="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-full text-xs font-black">📝 บันทึกร่าง</span>}
-                              {p.status === 'submitted' && <span className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black border border-blue-200">⏳ รอเขตตรวจ</span>}
-                              {p.status === 'reviewed' && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ เขตตรวจแล้ว</span>}
-                              {!p.status && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ส่งแล้ว (V1)</span>}
-                           </td>
-                           <td className="p-4 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                {planningLevel === 'แขวง' && p.status === 'draft' ? (
-                                   <>
-                                      <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(false); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition shadow-sm">แก้ไขต่อ ✏️</button>
-                                      <button onClick={() => handleDeletePlan(p.id)} className="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 transition shadow-sm">ลบ 🗑</button>
-                                   </>
-                                ) : planningLevel === 'เขต' && p.status === 'submitted' ? (
-                                   <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-5 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">ตรวจ / แนะนำ 💬</button>
-                                ) : (
-                                   <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-gray-600 font-bold text-sm bg-gray-100 px-5 py-2 rounded-xl hover:bg-gray-200 transition shadow-sm">ดูข้อมูล 📄</button>
-                                )}
-                              </div>
-                           </td>
-                         </tr>
-                      )) : (
-                         <tr><td colSpan="5" className="p-8 text-center text-gray-400 font-bold text-lg">ยังไม่มีข้อมูลแผนงานในระบบ</td></tr>
-                      )}
-                   </tbody>
-                </table>
-              </div>
+          {/* ✨ ระบบตารางแสดงประวัติแผนงาน (รอบนี้โชว์ให้ระดับ "คริสตจักร" ดูด้วย!) */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
+                 <span className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">📋</span> 
+                 {planningLevel === 'คริสตจักร' ? 'ประวัติแผนงานทั้งหมด' : (planningLevel === 'เขต' ? 'สถานะแผนงานของแขวงในเขต' : 'ประวัติแผนงานของแขวง')}
+              </h2>
             </div>
-          )}
+            <div className="overflow-x-auto rounded-xl border border-gray-100">
+              <table className="w-full text-left border-collapse whitespace-nowrap">
+                 <thead className="bg-gray-50 text-gray-600 text-sm">
+                    <tr>
+                      <th className="p-4 font-bold border-b border-gray-100">วันที่ส่งแผน</th>
+                      <th className="p-4 font-bold border-b border-gray-100">ชื่อแขวง</th>
+                      <th className="p-4 font-bold border-b border-gray-100">ผู้รับผิดชอบ</th>
+                      <th className="p-4 font-bold border-b border-gray-100">สถานะ</th>
+                      <th className="p-4 font-bold border-b border-gray-100 text-center">จัดการ</th>
+                    </tr>
+                 </thead>
+                 <tbody>
+                    {myPlans.length > 0 ? myPlans.map(p => (
+                       <tr key={p.id} className="border-b border-gray-50 hover:bg-slate-50 transition-colors">
+                         <td className="p-4 text-sm font-medium text-gray-600">{new Date(p.created_at || Date.now()).toLocaleDateString('th-TH')}</td>
+                         <td className="p-4 font-black text-gray-800 text-base">{p.area}</td>
+                         <td className="p-4 text-sm text-gray-600">{p.reporter}</td>
+                         <td className="p-4">
+                            {p.status === 'draft' && <span className="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-full text-xs font-black">📝 บันทึกร่าง</span>}
+                            {p.status === 'submitted' && <span className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black border border-blue-200">⏳ รอเขตตรวจ</span>}
+                            {p.status === 'reviewed' && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ เขตตรวจแล้ว</span>}
+                            {!p.status && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ส่งแล้ว (V1)</span>}
+                         </td>
+                         <td className="p-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              {planningLevel === 'แขวง' && p.status === 'draft' ? (
+                                 <>
+                                    <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(false); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition shadow-sm">แก้ไขต่อ ✏️</button>
+                                    <button onClick={() => handleDeletePlan(p.id)} className="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 transition shadow-sm">ลบ 🗑</button>
+                                 </>
+                              ) : planningLevel === 'เขต' && p.status === 'submitted' ? (
+                                 <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-5 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">ตรวจ / แนะนำ 💬</button>
+                              ) : (
+                                 <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-gray-600 font-bold text-sm bg-gray-100 px-5 py-2 rounded-xl hover:bg-gray-200 transition shadow-sm">ดูข้อมูล 📄</button>
+                              )}
+                            </div>
+                         </td>
+                       </tr>
+                    )) : (
+                       <tr><td colSpan="5" className="p-8 text-center text-gray-400 font-bold text-lg">ยังไม่มีข้อมูลแผนงานในระบบ</td></tr>
+                    )}
+                 </tbody>
+              </table>
+            </div>
+          </div>
 
           {/* สรุปเป้าหมายรวมของเขต */}
           {planningLevel === 'เขต' && !viewingPlan && (
