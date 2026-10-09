@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V10 (Final Fix - ตัวแปรครบถ้วน + กู้คืนฟอร์ม)
+// ✨ VERSION: ULTIMATE V10 (Final Fix - ตัวแปรครบถ้วน + กู้คืนฟอร์ม + แก้กราฟหายตอนปริ้น)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -636,7 +636,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ✨ ระบบตารางแสดงประวัติแผนงาน (รอบนี้โชว์ให้ระดับ "คริสตจักร" ดูด้วย!) */}
+          {/* ✨ ระบบตารางแสดงประวัติแผนงาน */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
@@ -759,7 +759,7 @@ export default function App() {
                     <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} />
                     <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
-                    <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30}>
+                    <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={false}>
                       <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={10} offset={5} />
                     </Bar>
                     <defs>
