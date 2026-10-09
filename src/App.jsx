@@ -867,7 +867,7 @@ export default function App() {
                     <div className="pl-6 space-y-2 print:space-y-2">
                       <div className="flex flex-wrap items-end gap-2"><span className="pb-1">1.1. เป้าหมายจำนวนสมาชิกที่เพิ่มขึ้นในปี 2027:</span><input type="number" {...b('d1_1')} className={nCls} /><span className="pb-1">คน</span></div>
                       <div className="flex flex-wrap items-end gap-2"><span className="pb-1">1.2. เป้าหมายการนำคนรับเชื่อใหม่:</span><input type="number" {...b('d1_2')} className={nCls} /><span className="pb-1">คน</span></div>
-                      <div className="pt-1"><span className="block mb-1 font-bold">1.3. แผนการประกาศและนำวิญญาณ:</span><textarea {...b('d1_3')} className={tCls}></textarea></div>
+                      <div className="pt-1"><span className="block mb-1 font-bold">1.3. แผนการประกาศและนำวิญญาณ:</span><textarea {...b('d1_3')} className={`${tCls} print:hidden`}></textarea><div className="hidden print:block w-full border border-gray-400 p-2 min-h-[60px] text-black whitespace-pre-wrap font-medium">{planForm.d1_3 || '-'}</div></div>
                     </div>
                   </div>
 
@@ -943,14 +943,14 @@ export default function App() {
 
                   <div className="pl-4 avoid-page-break">
                     <h3 className="font-bold text-gray-900 mb-2 text-lg print:text-base">5. มิติด้านการอธิษฐานและการนมัสการ (Prayer & Worship)</h3>
-                    <div className="pl-6"><span className="block mb-2 font-bold">5.1. แผนการรณรงค์ให้สมาชิกเข้าร่วมโปรแกรมอธิษฐานให้ได้ 80% ขึ้นไป:</span><textarea {...b('d5_1')} className={tCls}></textarea></div>
+                    <div className="pl-6"><span className="block mb-2 font-bold">5.1. แผนการรณรงค์ให้สมาชิกเข้าร่วมโปรแกรมอธิษฐานให้ได้ 80% ขึ้นไป:</span><textarea {...b('d5_1')} className={`${tCls} print:hidden`}></textarea><div className="hidden print:block w-full border border-gray-400 p-2 min-h-[60px] text-black whitespace-pre-wrap font-medium">{planForm.d5_1 || '-'}</div></div>
                   </div>
 
                   <div className="pl-4 avoid-page-break">
                     <h3 className="font-bold text-gray-900 mb-2 text-lg print:text-base">6. มิติด้านความสัมพันธ์ (Relationship - HCRI)</h3>
                     <div className="pl-6 space-y-4 print:space-y-3">
-                      <div><span className="block mb-2 font-bold">6.1. แผนการเยี่ยมเยียนและดูแลกัน (Mutual Care):</span><textarea {...b('d6_1')} className={tCls}></textarea></div>
-                      <div><span className="block mb-2 font-bold">6.2. กิจกรรมสร้างความเป็นน้ำหนึ่งใจเดียวกัน (Unity & Teamwork):</span><textarea {...b('d6_2')} className={tCls}></textarea></div>
+                      <div><span className="block mb-2 font-bold">6.1. แผนการเยี่ยมเยียนและดูแลกัน (Mutual Care):</span><textarea {...b('d6_1')} className={`${tCls} print:hidden`}></textarea><div className="hidden print:block w-full border border-gray-400 p-2 min-h-[60px] text-black whitespace-pre-wrap font-medium">{planForm.d6_1 || '-'}</div></div>
+                      <div><span className="block mb-2 font-bold">6.2. กิจกรรมสร้างความเป็นน้ำหนึ่งใจเดียวกัน (Unity & Teamwork):</span><textarea {...b('d6_2')} className={`${tCls} print:hidden`}></textarea><div className="hidden print:block w-full border border-gray-400 p-2 min-h-[60px] text-black whitespace-pre-wrap font-medium">{planForm.d6_2 || '-'}</div></div>
                     </div>
                   </div>
                 </div>
