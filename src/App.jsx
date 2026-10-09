@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V10 (Final Fix - ตัวแปรครบถ้วน + กู้คืนฟอร์ม + แก้กราฟหายตอนปริ้น)
+// ✨ VERSION: ULTIMATE V10 (Final Fix - ตัวแปรครบถ้วน + กู้คืนฟอร์ม + FIX PRINT CHART)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -51,7 +51,7 @@ export default function App() {
   const [isSavingPlan, setIsSavingPlan] = useState(false)
   const [planForm, setPlanForm] = useState(defaultPlanForm)
 
-  // ✨ ตัวแปรยุบรวมคลาส CSS ป้องกันโค้ดโดนตัดจบ (ประกาศตรงนี้ให้ระบบรู้จัก)
+  // ✨ CSS classes
   const iCls = `flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
   const nCls = `w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
   const tCls = `w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-20 print:h-auto print:min-h-[60px] transition-colors print:border-gray-400 print:text-black print:rounded-none print:p-2 ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`;
@@ -88,6 +88,15 @@ export default function App() {
     { month: 'สิงหาคม 2026', days: [{ date: '2026-08-02', label: 'อาทิตย์ 2 ส.ค.' }, { date: '2026-08-09', label: 'อาทิตย์ 9 ส.ค.' }, { date: '2026-08-16', label: 'อาทิตย์ 16 ส.ค.' }, { date: '2026-08-23', label: 'อาทิตย์ 23 ส.ค.' }, { date: '2026-08-30', label: 'อาทิตย์ 30 ส.ค.' }] },
     { month: 'กันยายน 2026', days: [{ date: '2026-09-06', label: 'อาทิตย์ 6 ก.ย.' }, { date: '2026-09-13', label: 'อาทิตย์ 13 ก.ย.' }, { date: '2026-09-20', label: 'อาทิตย์ 20 ก.ย.' }, { date: '2026-09-27', label: 'อาทิตย์ 27 ก.ย.' }] }
   ];
+
+  // ✨ FIX: บังคับให้ Recharts วาดกราฟใหม่ก่อนปริ้น
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      window.dispatchEvent(new Event('resize'));
+    };
+    window.addEventListener('beforeprint', handleBeforePrint);
+    return () => window.removeEventListener('beforeprint', handleBeforePrint);
+  }, []);
 
   useEffect(() => {
     const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
@@ -407,6 +416,9 @@ export default function App() {
     return planningLevel === 'แขวง' ? 'md:grid-cols-3 print:grid-cols-3' : 'md:grid-cols-4 print:grid-cols-4';
   };
 
+  // ─────────────────────────────────────────────────────────────
+  // VIEW: LOGIN
+  // ─────────────────────────────────────────────────────────────
   if (currentView === 'login') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 flex flex-col items-center justify-center p-4">
@@ -457,6 +469,9 @@ export default function App() {
     )
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // VIEW: ADMIN BATCH ATTENDANCE
+  // ─────────────────────────────────────────────────────────────
   if (currentView === 'adminBatchAttendance') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-rose-50 via-orange-50 to-amber-100 p-4 md:p-8 flex flex-col items-center justify-center">
@@ -508,6 +523,9 @@ export default function App() {
     )
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // VIEW: DASHBOARD
+  // ─────────────────────────────────────────────────────────────
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-100 p-4 md:p-8 relative print:bg-white print:bg-none print:p-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
@@ -532,11 +550,40 @@ export default function App() {
               page-break-after: avoid !important;
               break-after: avoid !important;
             }
+
+            /* ✨ FIX: บังคับให้ Recharts render ถูกขนาดตอนปริ้น */
+            .recharts-responsive-container {
+              width: 100% !important;
+              min-width: 500px !important;
+            }
+            .recharts-wrapper {
+              width: 100% !important;
+            }
+            .recharts-surface {
+              width: 100% !important;
+              overflow: visible !important;
+            }
+            .recharts-legend-wrapper {
+              width: 100% !important;
+            }
+            /* บังคับให้ตัวเลขบนแท่งกราฟแสดงผลถูกต้อง */
+            .recharts-label-list text,
+            .recharts-text {
+              fill: #dc2626 !important;
+            }
+            /* บังคับให้แท่งกราฟและเส้น Grid ปรากฏ */
+            .recharts-cartesian-grid line {
+              stroke: #e2e8f0 !important;
+            }
+            .recharts-bar-rectangle path {
+              opacity: 1 !important;
+            }
           }
         `}</style>
 
         <div className="max-w-6xl mx-auto space-y-6 print:space-y-4 print:max-w-full print:w-full print:px-0">
           
+          {/* Header สำหรับ Print */}
           <div className="hidden print:flex justify-between items-center border-b-2 border-orange-500 pb-4 mb-4 avoid-page-break">
             <div>
               <h1 className="text-2xl font-black text-gray-900">ระบบวางแผน ปี 2027</h1>
@@ -548,6 +595,7 @@ export default function App() {
             </div>
           </div>
 
+          {/* Navbar / Header */}
           <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl shadow-sm border border-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
             <div>
               {planningLevel === 'คริสตจักร' ? (
@@ -572,6 +620,7 @@ export default function App() {
             </div>
           </div>
 
+          {/* Stats Cards */}
           <div className={`grid grid-cols-1 ${getGridColsClass()} gap-4 md:gap-6 print:gap-2 avoid-page-break`}>
             <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
               <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">สมาชิกทั้งหมด</h3>
@@ -601,7 +650,7 @@ export default function App() {
             )}
           </div>
 
-          {/* กล่อง 4 เสาหลัก */}
+          {/* กล่อง 4 เสาหลัก (ระดับคริสตจักร) */}
           {planningLevel === 'คริสตจักร' && (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:p-2 print:mt-4 print:border-none print:shadow-none">
               <div className="text-center mb-8 print:mb-4">
@@ -636,7 +685,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ✨ ระบบตารางแสดงประวัติแผนงาน */}
+          {/* ตารางประวัติแผนงาน (ซ่อนตอนปริ้น) */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
@@ -718,7 +767,7 @@ export default function App() {
             </div>
           )}
 
-          {/* สถิติการมาร่วม (กราฟ) */}
+          {/* ✨ สถิติการมาร่วม (กราฟ) */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:p-0 print:border-none print:shadow-none print:mt-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div className="flex items-center gap-4">
@@ -734,13 +783,19 @@ export default function App() {
                 <div className="flex items-center justify-end gap-3 mb-2 relative">
                   <p className="text-gray-700 font-bold text-base print:text-sm">เป้าหมายไตรมาส 3 :</p>
                   <div className="relative">
-                    <input type="number" placeholder="ระบุเป้า" className="w-16 border-b-2 border-orange-300 text-center text-orange-600 font-black text-xl focus:outline-none bg-transparent print:border-none print:text-base print:text-black" value={areaTarget} onChange={(e) => { 
-                      setAreaTarget(e.target.value); 
-                      const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea; 
-                      localStorage.setItem('target_' + areaKey, e.target.value); 
-                      setShowTargetSaved(true);
-                      setTimeout(() => setShowTargetSaved(false), 2000);
-                    }} />
+                    <input
+                      type="number"
+                      placeholder="ระบุเป้า"
+                      className="w-16 border-b-2 border-orange-300 text-center text-orange-600 font-black text-xl focus:outline-none bg-transparent print:border-none print:text-base print:text-black"
+                      value={areaTarget}
+                      onChange={(e) => {
+                        setAreaTarget(e.target.value);
+                        const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
+                        localStorage.setItem('target_' + areaKey, e.target.value);
+                        setShowTargetSaved(true);
+                        setTimeout(() => setShowTargetSaved(false), 2000);
+                      }}
+                    />
                     {showTargetSaved && <span className="absolute -top-8 -right-2 text-xs font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shadow-sm animate-pulse whitespace-nowrap print:hidden">💾 จำค่าแล้ว</span>}
                   </div>
                 </div>
@@ -751,15 +806,16 @@ export default function App() {
               </div>
             </div>
             
-            <div className="h-[450px] w-full mt-4 print:h-[250px] print:overflow-hidden print:mb-6">
+            {/* ✨ FIX: กล่องกราฟ — เพิ่ม minWidth ให้ ResponsiveContainer รู้ขนาดตอนปริ้น */}
+            <div className="h-[450px] w-full mt-4 print:h-[280px] print:overflow-visible print:mb-6">
               {attendanceData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={400}>
                   <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} />
                     <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
-                    <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={false}>
+                    <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30}>
                       <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={10} offset={5} />
                     </Bar>
                     <defs>
@@ -777,7 +833,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* --- ตารางสรุปสมาชิกคริสตจักร / รายชื่อสมาชิก --- */}
+        {/* ตารางสรุปสมาชิกคริสตจักร / รายชื่อสมาชิก */}
         <div className="max-w-6xl mx-auto print:mt-4">
           {planningLevel === 'คริสตจักร' ? (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:shadow-none print:border-none print:p-0 print:mt-4">
@@ -825,7 +881,7 @@ export default function App() {
           )}
         </div>
 
-        {/* --- ✨ แบบฟอร์ม 6 มิติ --- */}
+        {/* ✨ แบบฟอร์ม 6 มิติ */}
         {(planningLevel === 'แขวง' || viewingPlan) && (
           <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0 force-new-page">
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
@@ -972,7 +1028,7 @@ export default function App() {
 
                 </div>
 
-                {/* ส่วนปุ่มกดและคอมเมนต์ด้านล่าง */}
+                {/* ปุ่มกดและคอมเมนต์ด้านล่าง */}
                 {isReadOnly ? (
                    <div className="pt-8 print:hidden space-y-4 border-t-2 border-gray-100 mt-6">
                       {viewingPlan?.feedback && (
@@ -1089,6 +1145,9 @@ export default function App() {
     )
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // VIEW: SUCCESS
+  // ─────────────────────────────────────────────────────────────
   if (currentView === 'success') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center p-4">
