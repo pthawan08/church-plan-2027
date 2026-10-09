@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V10 (Final Fix - ตัวแปรครบถ้วน + กู้คืนฟอร์ม + FIX PRINT CHART)
+// ✨ VERSION: ULTIMATE V10 (FINAL PRINT FIX - isPrinting State)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -51,7 +51,20 @@ export default function App() {
   const [isSavingPlan, setIsSavingPlan] = useState(false)
   const [planForm, setPlanForm] = useState(defaultPlanForm)
 
-  // ✨ CSS classes
+  // ✨ PRINT FIX: state ควบคุมโหมดปริ้น
+  const [isPrinting, setIsPrinting] = useState(false)
+
+  // ✨ PRINT FIX: ฟังก์ชันปริ้นที่แก้ปัญหากราฟ
+  // วิธีการ: set isPrinting=true → React re-render กราฟด้วย pixel จริง → รอ 350ms → print
+  const handlePrint = () => {
+    setIsPrinting(true)
+    setTimeout(() => {
+      window.print()
+      setTimeout(() => setIsPrinting(false), 1500)
+    }, 350)
+  }
+
+  // CSS classes
   const iCls = `flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
   const nCls = `w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
   const tCls = `w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-20 print:h-auto print:min-h-[60px] transition-colors print:border-gray-400 print:text-black print:rounded-none print:p-2 ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`;
@@ -88,15 +101,6 @@ export default function App() {
     { month: 'สิงหาคม 2026', days: [{ date: '2026-08-02', label: 'อาทิตย์ 2 ส.ค.' }, { date: '2026-08-09', label: 'อาทิตย์ 9 ส.ค.' }, { date: '2026-08-16', label: 'อาทิตย์ 16 ส.ค.' }, { date: '2026-08-23', label: 'อาทิตย์ 23 ส.ค.' }, { date: '2026-08-30', label: 'อาทิตย์ 30 ส.ค.' }] },
     { month: 'กันยายน 2026', days: [{ date: '2026-09-06', label: 'อาทิตย์ 6 ก.ย.' }, { date: '2026-09-13', label: 'อาทิตย์ 13 ก.ย.' }, { date: '2026-09-20', label: 'อาทิตย์ 20 ก.ย.' }, { date: '2026-09-27', label: 'อาทิตย์ 27 ก.ย.' }] }
   ];
-
-  // ✨ FIX: บังคับให้ Recharts วาดกราฟใหม่ก่อนปริ้น
-  useEffect(() => {
-    const handleBeforePrint = () => {
-      window.dispatchEvent(new Event('resize'));
-    };
-    window.addEventListener('beforeprint', handleBeforePrint);
-    return () => window.removeEventListener('beforeprint', handleBeforePrint);
-  }, []);
 
   useEffect(() => {
     const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
@@ -176,7 +180,6 @@ export default function App() {
   const fetchPlans = async (level, area, memData) => {
     const { data, error } = await supabase.from('church_plans').select('*').order('id', { ascending: false });
     if (error || !data) return;
-    
     if (level === 'แขวง') {
       setMyPlans(data.filter(p => p.level === 'แขวง' && p.area === area));
     } else if (level === 'เขต') {
@@ -204,19 +207,16 @@ export default function App() {
   const currentAreaStats = useMemo(() => {
     const targetArea = viewingPlan ? viewingPlan.area : selectedArea;
     const targetLevel = viewingPlan ? viewingPlan.level : planningLevel;
-    
     let filteredMembers = members;
     if (targetLevel === 'แขวง') {
        filteredMembers = members.filter(m => m['แขวง']?.trim() === targetArea?.trim());
     } else if (targetLevel === 'เขต') {
        filteredMembers = members.filter(m => m.Zone?.trim() === targetArea?.trim());
     }
-
     const memCount = filteredMembers.length;
     const cellCount = [...new Set(filteredMembers.map(m => m.Cell?.trim()).filter(Boolean))].length;
     const leaderCount = filteredMembers.filter(m => cellLeaderRoles.includes(m['สถานะ']?.trim())).length;
     const mentorCount = filteredMembers.filter(m => mentorRoles.includes(m['สถานะ']?.trim())).length;
-
     return { memCount, cellCount, leaderCount, mentorCount };
   }, [members, viewingPlan, selectedArea, planningLevel]);
 
@@ -229,7 +229,6 @@ export default function App() {
     } else {
       setPlanForm(defaultPlanForm);
     }
-
     setIsLoading(true)
     try {
       if (planningLevel === 'คริสตจักร') {
@@ -282,24 +281,14 @@ export default function App() {
   const handleSavePlan = async (statusToSave) => {
     setIsSavingPlan(true);
     try {
-      const payload = { 
-        level: planningLevel, 
-        area: selectedArea, 
-        reporter: userName, 
-        plan_data: planForm,
-        status: statusToSave 
-      };
-      
+      const payload = { level: planningLevel, area: selectedArea, reporter: userName, plan_data: planForm, status: statusToSave };
       if (viewingPlan?.id) {
         await supabase.from('church_plans').update(payload).eq('id', viewingPlan.id);
       } else {
         await supabase.from('church_plans').insert([payload]);
       }
-      
       alert(statusToSave === 'draft' ? 'บันทึกฉบับร่างเรียบร้อยแล้ว! 💾' : 'ส่งแผนงานให้เขตสำเร็จ! 🚀');
-      
       await fetchPlans(planningLevel, selectedArea, members);
-      
       if (statusToSave === 'submitted') {
          setPlanForm(defaultPlanForm);
          setViewingPlan(null);
@@ -308,11 +297,7 @@ export default function App() {
          localStorage.removeItem('planForm_' + areaKey);
          setCurrentView('success');
       }
-    } catch (error) { 
-      alert('บันทึกไม่สำเร็จ: ' + error.message);
-    } finally { 
-      setIsSavingPlan(false);
-    }
+    } catch (error) { alert('บันทึกไม่สำเร็จ: ' + error.message); } finally { setIsSavingPlan(false); }
   }
 
   const handleDeletePlan = async (id) => {
@@ -321,17 +306,9 @@ export default function App() {
         const { error } = await supabase.from('church_plans').delete().eq('id', id);
         if (error) throw error;
         alert('ลบแผนงานเรียบร้อยแล้วครับ 🗑️');
-        
-        if (viewingPlan?.id === id) {
-           setViewingPlan(null);
-           setPlanForm(defaultPlanForm);
-           setIsReadOnly(false);
-        }
-        
+        if (viewingPlan?.id === id) { setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false); }
         await fetchPlans(planningLevel, selectedArea, members);
-      } catch (err) {
-        alert('ลบแผนไม่สำเร็จ: ' + err.message);
-      }
+      } catch (err) { alert('ลบแผนไม่สำเร็จ: ' + err.message); }
     }
   }
 
@@ -339,14 +316,9 @@ export default function App() {
     try {
       await supabase.from('church_plans').update({ status: 'reviewed', feedback: feedbackInput }).eq('id', viewingPlan.id);
       alert('ส่งข้อเสนอแนะให้แขวงเรียบร้อยแล้ว! 💬');
-      setFeedbackInput('');
-      setViewingPlan(null);
-      setIsReadOnly(false);
-      setPlanForm(defaultPlanForm);
+      setFeedbackInput(''); setViewingPlan(null); setIsReadOnly(false); setPlanForm(defaultPlanForm);
       await fetchPlans(planningLevel, selectedArea, members);
-    } catch (err) {
-      alert('บันทึกข้อเสนอแนะไม่สำเร็จ: ' + err.message);
-    }
+    } catch (err) { alert('บันทึกข้อเสนอแนะไม่สำเร็จ: ' + err.message); }
   }
 
   const handleOpenAdd = () => {
@@ -389,7 +361,6 @@ export default function App() {
   const uniqueKwangCount = [...new Set(members.map(m => m['แขวง']?.trim()).filter(k => k))].length
   const uniqueUnitCount = [...new Set(members.map(m => m['หน่วย']?.trim()).filter(u => u))].length
   const uniqueCellCount = [...new Set(members.map(m => m.Cell?.trim()).filter(c => c))].length
-  
   const sortedUnits = [...new Set(members.map(m => m['หน่วย']?.trim()).filter(Boolean))].sort();
 
   const dynamicCells = useMemo(() => {
@@ -416,6 +387,25 @@ export default function App() {
     return planningLevel === 'แขวง' ? 'md:grid-cols-3 print:grid-cols-3' : 'md:grid-cols-4 print:grid-cols-4';
   };
 
+  // ✨ PRINT FIX: BarChart content ที่ใช้ร่วมกันทั้ง 2 mode
+  const BarChartContent = () => (
+    <>
+      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+      <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} />
+      <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
+      <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
+      <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30}>
+        <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={10} offset={5} />
+      </Bar>
+      <defs>
+        <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ef4444" stopOpacity={1}/>
+          <stop offset="100%" stopColor="#f97316" stopOpacity={1}/>
+        </linearGradient>
+      </defs>
+    </>
+  );
+
   // ─────────────────────────────────────────────────────────────
   // VIEW: LOGIN
   // ─────────────────────────────────────────────────────────────
@@ -440,7 +430,6 @@ export default function App() {
                 </div>
               </div>
             </div>
-
             {planningLevel !== 'คริสตจักร' && (
               <>
                 <div>
@@ -497,7 +486,6 @@ export default function App() {
                 </select>
               </div>
             </div>
-
             <div className="max-h-80 overflow-y-auto space-y-6 pr-2 border-t border-b border-gray-100 py-4">
               {monthsQ3.map(mGroup => (
                 <div key={mGroup.month} className="space-y-3">
@@ -513,7 +501,6 @@ export default function App() {
                 </div>
               ))}
             </div>
-
             <button type="submit" disabled={isSavingAtt} className="w-full bg-gradient-to-r from-rose-500 to-orange-500 text-white p-4 rounded-2xl font-black text-lg hover:shadow-lg transition-all disabled:opacity-70">
               {isSavingAtt ? 'กำลังบันทึกข้อมูล...' : '💾 บันทึกข้อมูลสถิติย้อนหลังทั้งหมด'}
             </button>
@@ -533,69 +520,37 @@ export default function App() {
         <style>{`
           @media print {
             @page { size: A4 portrait; margin: 10mm; }
-            html, body { 
-              width: 100% !important; 
-              font-size: 11pt !important;
-              color: black !important;
-            }
-            .avoid-page-break {
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
-            }
-            .force-new-page {
-              page-break-before: always !important;
-              break-before: page !important;
-            }
-            h2, h3, h4 {
-              page-break-after: avoid !important;
-              break-after: avoid !important;
-            }
-
-            /* ✨ FIX: บังคับให้ Recharts render ถูกขนาดตอนปริ้น */
-            .recharts-responsive-container {
-              width: 100% !important;
-              min-width: 500px !important;
-            }
-            .recharts-wrapper {
-              width: 100% !important;
-            }
-            .recharts-surface {
-              width: 100% !important;
-              overflow: visible !important;
-            }
-            .recharts-legend-wrapper {
-              width: 100% !important;
-            }
-            /* บังคับให้ตัวเลขบนแท่งกราฟแสดงผลถูกต้อง */
-            .recharts-label-list text,
-            .recharts-text {
-              fill: #dc2626 !important;
-            }
-            /* บังคับให้แท่งกราฟและเส้น Grid ปรากฏ */
-            .recharts-cartesian-grid line {
-              stroke: #e2e8f0 !important;
-            }
-            .recharts-bar-rectangle path {
-              opacity: 1 !important;
-            }
+            html, body { width: 100% !important; font-size: 11pt !important; color: black !important; }
+            .avoid-page-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+            .force-new-page { page-break-before: always !important; break-before: page !important; }
+            h2, h3, h4 { page-break-after: avoid !important; break-after: avoid !important; }
           }
         `}</style>
 
+        {/* ✨ PRINT FIX: Overlay แจ้งผู้ใช้ระหว่างเตรียมปริ้น */}
+        {isPrinting && (
+          <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-[9999] flex items-center justify-center print:hidden">
+            <div className="text-center">
+              <div className="text-5xl mb-4 animate-spin">⏳</div>
+              <p className="font-black text-gray-700 text-xl">กำลังเตรียมกราฟสำหรับปริ้น...</p>
+              <p className="text-gray-500 font-medium mt-2">รอสักครู่นะครับ</p>
+            </div>
+          </div>
+        )}
+
         <div className="max-w-6xl mx-auto space-y-6 print:space-y-4 print:max-w-full print:w-full print:px-0">
           
-          {/* Header สำหรับ Print */}
+          {/* Print Header */}
           <div className="hidden print:flex justify-between items-center border-b-2 border-orange-500 pb-4 mb-4 avoid-page-break">
             <div>
               <h1 className="text-2xl font-black text-gray-900">ระบบวางแผน ปี 2027</h1>
               <p className="text-sm text-gray-600 font-bold mt-1">ระดับ{planningLevel === 'คริสตจักร' ? 'คริสตจักรแห่งนิมิตพิษณุโลก' : `${planningLevel}: ${selectedArea}`}</p>
               {planningLevel !== 'คริสตจักร' && <p className="text-gray-500 text-xs mt-1">ผู้รับผิดชอบ: {userName}</p>}
             </div>
-            <div className="flex items-center gap-3">
-              <QRCodeSVG value={liveUrl} size={60} />
-            </div>
+            <QRCodeSVG value={liveUrl} size={60} />
           </div>
 
-          {/* Navbar / Header */}
+          {/* Navbar */}
           <div className="bg-white/90 backdrop-blur-md p-5 rounded-3xl shadow-sm border border-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 print:hidden">
             <div>
               {planningLevel === 'คริสตจักร' ? (
@@ -606,13 +561,12 @@ export default function App() {
             </div>
             <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
               <div className="flex items-center gap-4 bg-orange-50/50 p-2.5 px-4 rounded-2xl border-2 border-dashed border-orange-300 w-full md:w-auto">
-                <div className="bg-white p-1 rounded-xl shadow-sm border border-orange-100">
-                  <QRCodeSVG value={liveUrl} size={48} />
-                </div>
+                <div className="bg-white p-1 rounded-xl shadow-sm border border-orange-100"><QRCodeSVG value={liveUrl} size={48} /></div>
                 <div className="text-sm"><p className="font-black text-gray-800">ระบบฐานข้อมูล 2027</p><p className="text-gray-500 font-medium text-[11px]">สแกนเพื่อเปิดเว็บมือถือ</p></div>
               </div>
               <div className="flex gap-3 w-full md:w-auto">
-                <button onClick={() => window.print()} className="flex-1 md:flex-none text-orange-700 bg-orange-100 hover:bg-orange-200 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-sm">
+                {/* ✨ ใช้ handlePrint แทน window.print() */}
+                <button onClick={handlePrint} className="flex-1 md:flex-none text-orange-700 bg-orange-100 hover:bg-orange-200 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-sm">
                   🖨 ปริ้นรายงาน
                 </button>
                 <button onClick={() => {setCurrentView('login'); setSelectedArea(''); setUserName('');}} className="text-rose-600 bg-rose-50 hover:bg-rose-100 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center">ออกจากระบบ</button>
@@ -650,7 +604,7 @@ export default function App() {
             )}
           </div>
 
-          {/* กล่อง 4 เสาหลัก (ระดับคริสตจักร) */}
+          {/* 4 เสาหลัก คริสตจักร */}
           {planningLevel === 'คริสตจักร' && (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:p-2 print:mt-4 print:border-none print:shadow-none">
               <div className="text-center mb-8 print:mb-4">
@@ -685,56 +639,56 @@ export default function App() {
             </div>
           )}
 
-          {/* ตารางประวัติแผนงาน (ซ่อนตอนปริ้น) */}
+          {/* ตารางประวัติแผนงาน */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
-                 <span className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">📋</span> 
-                 {planningLevel === 'คริสตจักร' ? 'ประวัติแผนงานทั้งหมด' : (planningLevel === 'เขต' ? 'สถานะแผนงานของแขวงในเขต' : 'ประวัติแผนงานของแขวง')}
+                <span className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">📋</span> 
+                {planningLevel === 'คริสตจักร' ? 'ประวัติแผนงานทั้งหมด' : (planningLevel === 'เขต' ? 'สถานะแผนงานของแขวงในเขต' : 'ประวัติแผนงานของแขวง')}
               </h2>
             </div>
             <div className="overflow-x-auto rounded-xl border border-gray-100">
               <table className="w-full text-left border-collapse whitespace-nowrap">
-                 <thead className="bg-gray-50 text-gray-600 text-sm">
-                    <tr>
-                      <th className="p-4 font-bold border-b border-gray-100">วันที่ส่งแผน</th>
-                      <th className="p-4 font-bold border-b border-gray-100">ชื่อแขวง</th>
-                      <th className="p-4 font-bold border-b border-gray-100">ผู้รับผิดชอบ</th>
-                      <th className="p-4 font-bold border-b border-gray-100">สถานะ</th>
-                      <th className="p-4 font-bold border-b border-gray-100 text-center">จัดการ</th>
+                <thead className="bg-gray-50 text-gray-600 text-sm">
+                  <tr>
+                    <th className="p-4 font-bold border-b border-gray-100">วันที่ส่งแผน</th>
+                    <th className="p-4 font-bold border-b border-gray-100">ชื่อแขวง</th>
+                    <th className="p-4 font-bold border-b border-gray-100">ผู้รับผิดชอบ</th>
+                    <th className="p-4 font-bold border-b border-gray-100">สถานะ</th>
+                    <th className="p-4 font-bold border-b border-gray-100 text-center">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myPlans.length > 0 ? myPlans.map(p => (
+                    <tr key={p.id} className="border-b border-gray-50 hover:bg-slate-50 transition-colors">
+                      <td className="p-4 text-sm font-medium text-gray-600">{new Date(p.created_at || Date.now()).toLocaleDateString('th-TH')}</td>
+                      <td className="p-4 font-black text-gray-800 text-base">{p.area}</td>
+                      <td className="p-4 text-sm text-gray-600">{p.reporter}</td>
+                      <td className="p-4">
+                        {p.status === 'draft' && <span className="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-full text-xs font-black">📝 บันทึกร่าง</span>}
+                        {p.status === 'submitted' && <span className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black border border-blue-200">⏳ รอเขตตรวจ</span>}
+                        {p.status === 'reviewed' && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ เขตตรวจแล้ว</span>}
+                        {!p.status && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ส่งแล้ว (V1)</span>}
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          {planningLevel === 'แขวง' && p.status === 'draft' ? (
+                            <>
+                              <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(false); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition shadow-sm">แก้ไขต่อ ✏️</button>
+                              <button onClick={() => handleDeletePlan(p.id)} className="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 transition shadow-sm">ลบ 🗑</button>
+                            </>
+                          ) : planningLevel === 'เขต' && p.status === 'submitted' ? (
+                            <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-5 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">ตรวจ / แนะนำ 💬</button>
+                          ) : (
+                            <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-gray-600 font-bold text-sm bg-gray-100 px-5 py-2 rounded-xl hover:bg-gray-200 transition shadow-sm">ดูข้อมูล 📄</button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
-                 </thead>
-                 <tbody>
-                    {myPlans.length > 0 ? myPlans.map(p => (
-                       <tr key={p.id} className="border-b border-gray-50 hover:bg-slate-50 transition-colors">
-                         <td className="p-4 text-sm font-medium text-gray-600">{new Date(p.created_at || Date.now()).toLocaleDateString('th-TH')}</td>
-                         <td className="p-4 font-black text-gray-800 text-base">{p.area}</td>
-                         <td className="p-4 text-sm text-gray-600">{p.reporter}</td>
-                         <td className="p-4">
-                            {p.status === 'draft' && <span className="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-full text-xs font-black">📝 บันทึกร่าง</span>}
-                            {p.status === 'submitted' && <span className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black border border-blue-200">⏳ รอเขตตรวจ</span>}
-                            {p.status === 'reviewed' && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ เขตตรวจแล้ว</span>}
-                            {!p.status && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ ส่งแล้ว (V1)</span>}
-                         </td>
-                         <td className="p-4 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              {planningLevel === 'แขวง' && p.status === 'draft' ? (
-                                 <>
-                                    <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(false); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 transition shadow-sm">แก้ไขต่อ ✏️</button>
-                                    <button onClick={() => handleDeletePlan(p.id)} className="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 transition shadow-sm">ลบ 🗑</button>
-                                 </>
-                              ) : planningLevel === 'เขต' && p.status === 'submitted' ? (
-                                 <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-5 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">ตรวจ / แนะนำ 💬</button>
-                              ) : (
-                                 <button onClick={() => {setViewingPlan(p); setPlanForm(p.plan_data); setIsReadOnly(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-gray-600 font-bold text-sm bg-gray-100 px-5 py-2 rounded-xl hover:bg-gray-200 transition shadow-sm">ดูข้อมูล 📄</button>
-                              )}
-                            </div>
-                         </td>
-                       </tr>
-                    )) : (
-                       <tr><td colSpan="5" className="p-8 text-center text-gray-400 font-bold text-lg">ยังไม่มีข้อมูลแผนงานในระบบ</td></tr>
-                    )}
-                 </tbody>
+                  )) : (
+                    <tr><td colSpan="5" className="p-8 text-center text-gray-400 font-bold text-lg">ยังไม่มีข้อมูลแผนงานในระบบ</td></tr>
+                  )}
+                </tbody>
               </table>
             </div>
           </div>
@@ -743,31 +697,19 @@ export default function App() {
           {planningLevel === 'เขต' && !viewingPlan && (
             <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 md:p-10 rounded-3xl shadow-sm border border-blue-100 mt-6 avoid-page-break print:p-4 print:border-gray-300 print:shadow-none print:mt-4">
               <div className="text-center mb-8 print:mb-4">
-                 <span className="bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-black border border-indigo-200 mb-4 inline-block print:border-none print:bg-transparent print:p-0">สรุปภาพรวมระดับเขต</span>
-                 <h2 className="text-2xl md:text-3xl font-black text-indigo-900 print:text-lg">เป้าหมายรวมของ {selectedArea} ปี 2027</h2>
+                <span className="bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-black border border-indigo-200 mb-4 inline-block print:border-none print:bg-transparent print:p-0">สรุปภาพรวมระดับเขต</span>
+                <h2 className="text-2xl md:text-3xl font-black text-indigo-900 print:text-lg">เป้าหมายรวมของ {selectedArea} ปี 2027</h2>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
-                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center print:border-gray-200 print:p-2">
-                    <p className="text-indigo-600 font-bold text-sm mb-1 print:text-xs">สมาชิกรวม</p>
-                    <p className="text-4xl font-black text-indigo-900 print:text-lg">{zoneAggregated?.t_mem || 0} <span className="text-sm font-bold text-indigo-400 print:text-xs">คน</span></p>
-                 </div>
-                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center print:border-gray-200 print:p-2">
-                    <p className="text-indigo-600 font-bold text-sm mb-1 print:text-xs">เซลล์ใหม่รวม</p>
-                    <p className="text-4xl font-black text-indigo-900 print:text-lg">{zoneAggregated?.t_cell || 0} <span className="text-sm font-bold text-indigo-400 print:text-xs">กลุ่ม</span></p>
-                 </div>
-                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center print:border-gray-200 print:p-2">
-                    <p className="text-indigo-600 font-bold text-sm mb-1 print:text-xs">หนซ. ใหม่รวม</p>
-                    <p className="text-4xl font-black text-indigo-900 print:text-lg">{zoneAggregated?.t_lead || 0} <span className="text-sm font-bold text-indigo-400 print:text-xs">คน</span></p>
-                 </div>
-                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center print:border-gray-200 print:p-2">
-                    <p className="text-indigo-600 font-bold text-sm mb-1 print:text-xs">พี่เลี้ยงใหม่รวม</p>
-                    <p className="text-4xl font-black text-indigo-900 print:text-lg">{zoneAggregated?.t_men || 0} <span className="text-sm font-bold text-indigo-400 print:text-xs">คน</span></p>
-                 </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center print:border-gray-200 print:p-2"><p className="text-indigo-600 font-bold text-sm mb-1 print:text-xs">สมาชิกรวม</p><p className="text-4xl font-black text-indigo-900 print:text-lg">{zoneAggregated?.t_mem || 0} <span className="text-sm font-bold text-indigo-400 print:text-xs">คน</span></p></div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center print:border-gray-200 print:p-2"><p className="text-indigo-600 font-bold text-sm mb-1 print:text-xs">เซลล์ใหม่รวม</p><p className="text-4xl font-black text-indigo-900 print:text-lg">{zoneAggregated?.t_cell || 0} <span className="text-sm font-bold text-indigo-400 print:text-xs">กลุ่ม</span></p></div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center print:border-gray-200 print:p-2"><p className="text-indigo-600 font-bold text-sm mb-1 print:text-xs">หนซ. ใหม่รวม</p><p className="text-4xl font-black text-indigo-900 print:text-lg">{zoneAggregated?.t_lead || 0} <span className="text-sm font-bold text-indigo-400 print:text-xs">คน</span></p></div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-white text-center print:border-gray-200 print:p-2"><p className="text-indigo-600 font-bold text-sm mb-1 print:text-xs">พี่เลี้ยงใหม่รวม</p><p className="text-4xl font-black text-indigo-900 print:text-lg">{zoneAggregated?.t_men || 0} <span className="text-sm font-bold text-indigo-400 print:text-xs">คน</span></p></div>
               </div>
             </div>
           )}
 
-          {/* ✨ สถิติการมาร่วม (กราฟ) */}
+          {/* ✨ สถิติการมาร่วม — PRINT FIX: conditional render */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:p-0 print:border-none print:shadow-none print:mt-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div className="flex items-center gap-4">
@@ -783,19 +725,7 @@ export default function App() {
                 <div className="flex items-center justify-end gap-3 mb-2 relative">
                   <p className="text-gray-700 font-bold text-base print:text-sm">เป้าหมายไตรมาส 3 :</p>
                   <div className="relative">
-                    <input
-                      type="number"
-                      placeholder="ระบุเป้า"
-                      className="w-16 border-b-2 border-orange-300 text-center text-orange-600 font-black text-xl focus:outline-none bg-transparent print:border-none print:text-base print:text-black"
-                      value={areaTarget}
-                      onChange={(e) => {
-                        setAreaTarget(e.target.value);
-                        const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
-                        localStorage.setItem('target_' + areaKey, e.target.value);
-                        setShowTargetSaved(true);
-                        setTimeout(() => setShowTargetSaved(false), 2000);
-                      }}
-                    />
+                    <input type="number" placeholder="ระบุเป้า" className="w-16 border-b-2 border-orange-300 text-center text-orange-600 font-black text-xl focus:outline-none bg-transparent print:border-none print:text-base print:text-black" value={areaTarget} onChange={(e) => { setAreaTarget(e.target.value); const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea; localStorage.setItem('target_' + areaKey, e.target.value); setShowTargetSaved(true); setTimeout(() => setShowTargetSaved(false), 2000); }} />
                     {showTargetSaved && <span className="absolute -top-8 -right-2 text-xs font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl shadow-sm animate-pulse whitespace-nowrap print:hidden">💾 จำค่าแล้ว</span>}
                   </div>
                 </div>
@@ -806,26 +736,23 @@ export default function App() {
               </div>
             </div>
             
-            {/* ✨ FIX: กล่องกราฟ — เพิ่ม minWidth ให้ ResponsiveContainer รู้ขนาดตอนปริ้น */}
-            <div className="h-[450px] w-full mt-4 print:h-[280px] print:overflow-visible print:mb-6">
+            {/* ✨ PRINT FIX: 
+                - isPrinting=true  → ใช้ <BarChart width={680} height={280}> โดยตรง (pixel จริง ไม่ต้องรู้ container size)
+                - isPrinting=false → ใช้ <ResponsiveContainer> ตามปกติ
+            */}
+            <div className="mt-4 print:mb-6" style={{ height: isPrinting ? '280px' : '450px' }}>
               {attendanceData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%" minWidth={400}>
-                  <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} />
-                    <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
-                    <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30}>
-                      <LabelList dataKey="count" position="top" fill="#dc2626" fontWeight="900" fontSize={10} offset={5} />
-                    </Bar>
-                    <defs>
-                      <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#ef4444" stopOpacity={1}/>
-                        <stop offset="100%" stopColor="#f97316" stopOpacity={1}/>
-                      </linearGradient>
-                    </defs>
+                isPrinting ? (
+                  <BarChart width={680} height={280} data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
+                    <BarChartContent />
                   </BarChart>
-                </ResponsiveContainer>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
+                      <BarChartContent />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-orange-200 rounded-3xl bg-orange-50/50 print:bg-white print:border-gray-300"><p className="text-orange-400 print:text-gray-500 font-bold text-sm">ยังไม่มีข้อมูลสถิติ</p></div>
               )}
@@ -833,7 +760,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* ตารางสรุปสมาชิกคริสตจักร / รายชื่อสมาชิก */}
+        {/* ตารางสรุปสมาชิก / รายชื่อ */}
         <div className="max-w-6xl mx-auto print:mt-4">
           {planningLevel === 'คริสตจักร' ? (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:shadow-none print:border-none print:p-0 print:mt-4">
@@ -881,19 +808,15 @@ export default function App() {
           )}
         </div>
 
-        {/* ✨ แบบฟอร์ม 6 มิติ */}
+        {/* แบบฟอร์ม 6 มิติ */}
         {(planningLevel === 'แขวง' || viewingPlan) && (
           <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0 force-new-page">
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
-              
               <form onSubmit={(e) => e.preventDefault()} className="text-gray-900">
-                
                 <div className="pb-4">
                   <div className="mb-8 pb-4 border-b-2 border-orange-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:mb-4 print:pb-2 print:border-black avoid-page-break">
                     <div>
-                      <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4 print:text-xl print:mb-2 flex items-center gap-3">
-                         แบบฟอร์มวางแผนรับใช้ 6 มิติ 
-                      </h1>
+                      <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4 print:text-xl print:mb-2 flex items-center gap-3">แบบฟอร์มวางแผนรับใช้ 6 มิติ</h1>
                       <div className="flex flex-col md:flex-row md:items-end gap-6 text-lg font-medium text-gray-800 print:text-sm print:gap-4">
                         <div className="flex items-end gap-3"><span className="whitespace-nowrap">ชื่อ{viewingPlan ? viewingPlan.level : planningLevel}:</span><span className="border-b-2 border-dotted border-orange-300 flex-1 md:w-64 text-center font-bold text-orange-600 pb-1 px-2 print:border-black print:text-black">{viewingPlan ? viewingPlan.area : selectedArea}</span></div>
                         <div className="flex items-end gap-3"><span className="whitespace-nowrap">ผู้รับผิดชอบ:</span><span className="border-b-2 border-dotted border-orange-300 w-64 text-center font-bold text-orange-600 pb-1 px-2 print:border-black print:text-black">{viewingPlan ? viewingPlan.reporter : userName}</span></div>
@@ -928,7 +851,6 @@ export default function App() {
                       </table>
                     </div>
                   </div>
-
                 </div>
 
                 <div className="space-y-8 pt-6 text-base leading-relaxed text-gray-800 print:pt-4 print:space-y-6 print:text-sm">
@@ -1025,55 +947,46 @@ export default function App() {
                       <div><span className="block mb-2 font-bold">6.2. กิจกรรมสร้างความเป็นน้ำหนึ่งใจเดียวกัน (Unity & Teamwork):</span><textarea {...b('d6_2')} className={tCls}></textarea></div>
                     </div>
                   </div>
-
                 </div>
 
-                {/* ปุ่มกดและคอมเมนต์ด้านล่าง */}
+                {/* ปุ่มด้านล่าง */}
                 {isReadOnly ? (
-                   <div className="pt-8 print:hidden space-y-4 border-t-2 border-gray-100 mt-6">
-                      {viewingPlan?.feedback && (
-                         <div className="bg-amber-50 p-6 rounded-2xl border border-amber-200">
-                            <h3 className="font-black text-amber-800 text-lg mb-2">💬 ข้อเสนอแนะจากหัวหน้าเขต:</h3>
-                            <p className="text-amber-900 whitespace-pre-wrap font-medium">{viewingPlan.feedback}</p>
-                         </div>
-                      )}
-
-                      {planningLevel === 'เขต' && viewingPlan?.status === 'submitted' && (
-                         <div className="bg-blue-50 p-6 rounded-2xl border border-blue-200 shadow-sm">
-                            <h3 className="font-black text-blue-800 text-lg mb-3">✍️ เพิ่มข้อเสนอแนะให้แขวง:</h3>
-                            <textarea 
-                               value={feedbackInput} 
-                               onChange={e => setFeedbackInput(e.target.value)} 
-                               className="w-full border-2 border-blue-200 p-4 rounded-xl focus:outline-none focus:border-blue-400 min-h-[120px] text-blue-900 font-medium" 
-                               placeholder="พิมพ์คำแนะนำ หรือสิ่งที่อยากให้แขวงเพิ่มเติมที่นี่..."
-                            ></textarea>
-                            <button type="button" onClick={handleSaveFeedback} className="mt-4 bg-blue-600 text-white font-bold py-3 px-6 rounded-xl hover:bg-blue-700 transition shadow-sm w-full md:w-auto">
-                               ✅ ส่งข้อเสนอแนะ & อนุมัติแผนงาน
-                            </button>
-                         </div>
-                      )}
-
-                      <div className="flex flex-col md:flex-row gap-4 pt-4">
-                         <button type="button" onClick={() => window.print()} className="w-full md:w-1/2 bg-orange-100 text-orange-700 font-bold py-4 rounded-xl hover:bg-orange-200 transition">🖨 ปริ้นแผนงานนี้ (PDF)</button>
-                         <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">❌ ปิดหน้าต่างนี้</button>
+                  <div className="pt-8 print:hidden space-y-4 border-t-2 border-gray-100 mt-6">
+                    {viewingPlan?.feedback && (
+                      <div className="bg-amber-50 p-6 rounded-2xl border border-amber-200">
+                        <h3 className="font-black text-amber-800 text-lg mb-2">💬 ข้อเสนอแนะจากหัวหน้าเขต:</h3>
+                        <p className="text-amber-900 whitespace-pre-wrap font-medium">{viewingPlan.feedback}</p>
                       </div>
-                   </div>
+                    )}
+                    {planningLevel === 'เขต' && viewingPlan?.status === 'submitted' && (
+                      <div className="bg-blue-50 p-6 rounded-2xl border border-blue-200 shadow-sm">
+                        <h3 className="font-black text-blue-800 text-lg mb-3">✍️ เพิ่มข้อเสนอแนะให้แขวง:</h3>
+                        <textarea value={feedbackInput} onChange={e => setFeedbackInput(e.target.value)} className="w-full border-2 border-blue-200 p-4 rounded-xl focus:outline-none focus:border-blue-400 min-h-[120px] text-blue-900 font-medium" placeholder="พิมพ์คำแนะนำ หรือสิ่งที่อยากให้แขวงเพิ่มเติมที่นี่..."></textarea>
+                        <button type="button" onClick={handleSaveFeedback} className="mt-4 bg-blue-600 text-white font-bold py-3 px-6 rounded-xl hover:bg-blue-700 transition shadow-sm w-full md:w-auto">✅ ส่งข้อเสนอแนะ & อนุมัติแผนงาน</button>
+                      </div>
+                    )}
+                    <div className="flex flex-col md:flex-row gap-4 pt-4">
+                      {/* ✨ ใช้ handlePrint แทน window.print() */}
+                      <button type="button" onClick={handlePrint} className="w-full md:w-1/2 bg-orange-100 text-orange-700 font-bold py-4 rounded-xl hover:bg-orange-200 transition">🖨 ปริ้นแผนงานนี้ (PDF)</button>
+                      <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">❌ ปิดหน้าต่างนี้</button>
+                    </div>
+                  </div>
                 ) : (
-                   <div className="pt-8 print:hidden flex flex-col md:flex-row gap-4 border-t-2 border-gray-100 mt-6">
-                      <button type="button" onClick={() => handleSavePlan('draft')} disabled={isSavingPlan} className="md:w-1/3 bg-gray-100 text-gray-700 p-4 rounded-2xl font-black text-xl hover:bg-gray-200 transition-all border-2 border-gray-200 disabled:opacity-70">
-                         {isSavingPlan ? 'กำลังบันทึก...' : '💾 บันทึกฉบับร่าง'}
-                      </button>
-                      <button type="button" onClick={() => handleSavePlan('submitted')} disabled={isSavingPlan} className="md:w-2/3 bg-gradient-to-r from-orange-500 to-rose-500 text-white p-4 rounded-2xl font-black text-xl hover:shadow-xl transition-all disabled:opacity-70 transform hover:-translate-y-1">
-                         {isSavingPlan ? 'กำลังส่งข้อมูล...' : '🚀 ส่งแผนงานให้เขต (ล็อกการแก้ไข)'}
-                      </button>
-                   </div>
+                  <div className="pt-8 print:hidden flex flex-col md:flex-row gap-4 border-t-2 border-gray-100 mt-6">
+                    <button type="button" onClick={() => handleSavePlan('draft')} disabled={isSavingPlan} className="md:w-1/3 bg-gray-100 text-gray-700 p-4 rounded-2xl font-black text-xl hover:bg-gray-200 transition-all border-2 border-gray-200 disabled:opacity-70">
+                      {isSavingPlan ? 'กำลังบันทึก...' : '💾 บันทึกฉบับร่าง'}
+                    </button>
+                    <button type="button" onClick={() => handleSavePlan('submitted')} disabled={isSavingPlan} className="md:w-2/3 bg-gradient-to-r from-orange-500 to-rose-500 text-white p-4 rounded-2xl font-black text-xl hover:shadow-xl transition-all disabled:opacity-70 transform hover:-translate-y-1">
+                      {isSavingPlan ? 'กำลังส่งข้อมูล...' : '🚀 ส่งแผนงานให้เขต (ล็อกการแก้ไข)'}
+                    </button>
+                  </div>
                 )}
               </form>
             </div>
           </div>
         )}
 
-        {/* Modal เพิ่มสถิติ */}
+        {/* Modal สถิติ */}
         {isAttModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 border border-white">
@@ -1087,51 +1000,51 @@ export default function App() {
           </div>
         )}
 
-        {/* Modal เพิ่มสมาชิก */}
+        {/* Modal สมาชิก */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 md:p-10 border border-white">
-               <div className="flex justify-between items-center border-b border-gray-100 pb-5 mb-8"><h2 className="text-2xl font-black text-gray-800">{memberForm.id ? 'แก้ไขข้อมูลสมาชิก' : 'เพิ่มสมาชิกใหม่'}</h2><button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition bg-gray-50 p-2 rounded-full"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
+              <div className="flex justify-between items-center border-b border-gray-100 pb-5 mb-8"><h2 className="text-2xl font-black text-gray-800">{memberForm.id ? 'แก้ไขข้อมูลสมาชิก' : 'เพิ่มสมาชิกใหม่'}</h2><button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition bg-gray-50 p-2 rounded-full"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
               <form onSubmit={handleSaveMember} className="space-y-6">
                 <h3 className="font-bold text-lg text-gray-800 border-l-4 border-blue-500 pl-3">ข้อมูลส่วนตัว</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div><label className="block text-sm font-bold text-gray-700 mb-2">คำนำหน้า (Title)</label><input type="text" placeholder="นาย, นาง, นางสาว" value={memberForm.title} onChange={e => setMemberForm({...memberForm, title: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
-                    <div><label className="block text-sm font-bold text-gray-700 mb-2">ชื่อ (First Name) <span className="text-red-500">*</span></label><input type="text" required value={memberForm.firstName} onChange={e => setMemberForm({...memberForm, firstName: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
-                    <div><label className="block text-sm font-bold text-gray-700 mb-2">นามสกุล (Last Name) <span className="text-red-500">*</span></label><input type="text" required value={memberForm.lastName} onChange={e => setMemberForm({...memberForm, lastName: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
-                    <div><label className="block text-sm font-bold text-gray-700 mb-2">ชื่อเล่น (Nick Name)</label><input type="text" value={memberForm.nickName} onChange={e => setMemberForm({...memberForm, nickName: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
-                    <div><label className="block text-sm font-bold text-gray-700 mb-2">วันเกิด (Date of Birth)</label><input type="date" value={memberForm.dob} onChange={e => setMemberForm({...memberForm, dob: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition text-gray-600 font-medium" /></div>
-                    <div><label className="block text-sm font-bold text-gray-700 mb-2">เบอร์โทร (Phone Number)</label><input type="text" value={memberForm.phone} onChange={e => setMemberForm({...memberForm, phone: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-2">คำนำหน้า (Title)</label><input type="text" placeholder="นาย, นาง, นางสาว" value={memberForm.title} onChange={e => setMemberForm({...memberForm, title: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-2">ชื่อ (First Name) <span className="text-red-500">*</span></label><input type="text" required value={memberForm.firstName} onChange={e => setMemberForm({...memberForm, firstName: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-2">นามสกุล (Last Name) <span className="text-red-500">*</span></label><input type="text" required value={memberForm.lastName} onChange={e => setMemberForm({...memberForm, lastName: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-2">ชื่อเล่น (Nick Name)</label><input type="text" value={memberForm.nickName} onChange={e => setMemberForm({...memberForm, nickName: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-2">วันเกิด (Date of Birth)</label><input type="date" value={memberForm.dob} onChange={e => setMemberForm({...memberForm, dob: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition text-gray-600 font-medium" /></div>
+                  <div><label className="block text-sm font-bold text-gray-700 mb-2">เบอร์โทร (Phone Number)</label><input type="text" value={memberForm.phone} onChange={e => setMemberForm({...memberForm, phone: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
                 </div>
                 <h3 className="font-bold text-lg text-gray-800 border-l-4 border-orange-500 pl-3 mt-6">สังกัดและหน้าที่</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">เขต (Zone) <span className="text-red-500">*</span></label>
-                      <input type="text" list="zone-list" required placeholder="เลือกหรือพิมพ์ชื่อเขต" value={memberForm.zone} onChange={e => setMemberForm({...memberForm, zone: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-bold text-orange-700" />
-                      <datalist id="zone-list">{listZones.map(z => <option key={z} value={z} />)}</datalist>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">แขวง (Kwang) <span className="text-red-500">*</span></label>
-                      <input type="text" list="kwang-list" required placeholder="เลือกหรือพิมพ์ชื่อแขวง" value={memberForm.kwang} onChange={e => setMemberForm({...memberForm, kwang: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-bold text-orange-700" />
-                      <datalist id="kwang-list">{listKwang.map(k => <option key={k} value={k} />)}</datalist>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">เขต (Zone) <span className="text-red-500">*</span></label>
+                    <input type="text" list="zone-list" required placeholder="เลือกหรือพิมพ์ชื่อเขต" value={memberForm.zone} onChange={e => setMemberForm({...memberForm, zone: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-bold text-orange-700" />
+                    <datalist id="zone-list">{listZones.map(z => <option key={z} value={z} />)}</datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">แขวง (Kwang) <span className="text-red-500">*</span></label>
+                    <input type="text" list="kwang-list" required placeholder="เลือกหรือพิมพ์ชื่อแขวง" value={memberForm.kwang} onChange={e => setMemberForm({...memberForm, kwang: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-bold text-orange-700" />
+                    <datalist id="kwang-list">{listKwang.map(k => <option key={k} value={k} />)}</datalist>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">สถานะ (Role) <span className="text-red-500">*</span></label>
-                      <select required value={memberForm.role} onChange={e => setMemberForm({...memberForm, role: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition font-medium">
-                        <option value="">Select Role</option><option value="ผจ.">ผู้สนใจ (ผจ.)</option><option value="ผช.ใหม่">ผู้เชื่อใหม่ (ผช.ใหม่)</option><option value="ผช.">ผู้เชื่อ (ผช.)</option><option value="สมาชิก">สมาชิก</option><option value="พี่เลี้ยง">พี่เลี้ยง (พล.)</option><option value="ผช.หนซ.">ผช.หนซ.</option><option value="หนซ.">หัวหน้าเซลล์ (หนซ.)</option><option value="หนน.">หัวหน้าหน่วย (หนน.)</option><option value="หนข.">หัวหน้าแขวง (หนข.)</option><option value="หัวหน้าเขต">หัวหน้าเขต</option><option value="ศบ.">ศิษยาภิบาล (ศบ.)</option><option value="ศบ.อาวุโส">ศิษยาภิบาลอาวุโส (ศบ.อาวุโส)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">หน่วย (Unit)</label>
-                      <input type="text" list="unit-list" placeholder="เลือกหรือพิมพ์ชื่อหน่วย" value={memberForm.unit} onChange={e => setMemberForm({...memberForm, unit: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition font-medium" />
-                      <datalist id="unit-list">{sortedUnits.map(u => <option key={u} value={u} />)}</datalist>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">กลุ่มเซลล์ (Cell)</label>
-                      <input type="text" list="cell-list" placeholder="เลือกหรือพิมพ์ชื่อเซลล์" value={memberForm.cell} onChange={e => setMemberForm({...memberForm, cell: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-medium text-blue-600" />
-                      <datalist id="cell-list">{dynamicCells.map(c => <option key={c} value={c} />)}</datalist>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">สถานะ (Role) <span className="text-red-500">*</span></label>
+                    <select required value={memberForm.role} onChange={e => setMemberForm({...memberForm, role: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition font-medium">
+                      <option value="">Select Role</option><option value="ผจ.">ผู้สนใจ (ผจ.)</option><option value="ผช.ใหม่">ผู้เชื่อใหม่ (ผช.ใหม่)</option><option value="ผช.">ผู้เชื่อ (ผช.)</option><option value="สมาชิก">สมาชิก</option><option value="พี่เลี้ยง">พี่เลี้ยง (พล.)</option><option value="ผช.หนซ.">ผช.หนซ.</option><option value="หนซ.">หัวหน้าเซลล์ (หนซ.)</option><option value="หนน.">หัวหน้าหน่วย (หนน.)</option><option value="หนข.">หัวหน้าแขวง (หนข.)</option><option value="หัวหน้าเขต">หัวหน้าเขต</option><option value="ศบ.">ศิษยาภิบาล (ศบ.)</option><option value="ศบ.อาวุโส">ศิษยาภิบาลอาวุโส (ศบ.อาวุโส)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">หน่วย (Unit)</label>
+                    <input type="text" list="unit-list" placeholder="เลือกหรือพิมพ์ชื่อหน่วย" value={memberForm.unit} onChange={e => setMemberForm({...memberForm, unit: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition font-medium" />
+                    <datalist id="unit-list">{sortedUnits.map(u => <option key={u} value={u} />)}</datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">กลุ่มเซลล์ (Cell)</label>
+                    <input type="text" list="cell-list" placeholder="เลือกหรือพิมพ์ชื่อเซลล์" value={memberForm.cell} onChange={e => setMemberForm({...memberForm, cell: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-medium text-blue-600" />
+                    <datalist id="cell-list">{dynamicCells.map(c => <option key={c} value={c} />)}</datalist>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-4 pt-6 mt-6 border-t border-gray-100">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3.5 rounded-xl font-bold text-gray-600 bg-gray-50 hover:bg-gray-100 transition">ยกเลิก (Cancel)</button>
