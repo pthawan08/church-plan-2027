@@ -32,6 +32,11 @@ export default function App() {
   const [adminAttLevel, setAdminAttLevel] = useState('แขวง')
   const [adminAttArea, setAdminAttArea] = useState('')
   const [adminAttData, setAdminAttData] = useState({})
+  
+  // ✨ ADMIN PANEL STATES
+  const [adminTab, setAdminTab] = useState('planTracker')
+  const [allAdminPlans, setAllAdminPlans] = useState([])
+  const [allAdminAtts, setAllAdminAtts] = useState([])
 
   const [areaTarget, setAreaTarget] = useState('')
   const [showTargetSaved, setShowTargetSaved] = useState(false) 
@@ -245,6 +250,23 @@ export default function App() {
     } catch (error) { alert('เกิดข้อผิดพลาดในการดึงข้อมูล') } finally { setIsLoading(false) }
   }
 
+  const handleOpenAdmin = async () => {
+    setIsLoading(true);
+    try {
+      const [plansRes, attsRes] = await Promise.all([
+        supabase.from('church_plans').select('*').order('created_at', { ascending: false }),
+        supabase.from('attendance').select('*').order('created_at', { ascending: false })
+      ]);
+      setAllAdminPlans(plansRes.data || []);
+      setAllAdminAtts(attsRes.data || []);
+      setCurrentView('adminPanel');
+    } catch (err) {
+      alert('ดึงข้อมูลแอดมินไม่สำเร็จ: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   const handleSaveAttendance = async (e) => {
     e.preventDefault(); setIsSavingAtt(true)
     try {
@@ -435,58 +457,177 @@ export default function App() {
             </button>
           </form>
         </div>
-        <button onClick={() => setCurrentView('adminBatchAttendance')} className="mt-8 text-rose-500 hover:text-rose-700 font-bold bg-white/60 px-5 py-2.5 rounded-full border border-rose-200 shadow-sm backdrop-blur-md transition-all">🛠️ โหมดแอดมิน: กรอกสถิติย้อนหลัง (ก.ค. - ก.ย.)</button>
+        <button onClick={handleOpenAdmin} className="mt-8 text-rose-600 hover:text-rose-800 font-bold bg-white/80 px-6 py-3 rounded-full border border-rose-200 shadow-sm backdrop-blur-md transition-all flex items-center gap-2"><span>🔐</span> เข้าสู่หน้าแผงควบคุมแอดมิน (Admin Panel)</button>
       </div>
     )
   }
 
   // ─────────────────────────────────────────────────────────────
-  // VIEW: ADMIN BATCH ATTENDANCE
+  // VIEW: ADMIN PANEL
   // ─────────────────────────────────────────────────────────────
-  if (currentView === 'adminBatchAttendance') {
+  if (currentView === 'adminPanel') {
+    
+    // Process Plan Data
+    const kwangPlanStatus = listKwang.map(kwang => {
+      const zone = allUsersList.find(u => u['แขวง'] === kwang)?.Zone || 'ไม่ระบุ';
+      const plans = allAdminPlans.filter(p => p.level === 'แขวง' && p.area === kwang);
+      const latestPlan = plans.length > 0 ? plans[0] : null;
+      return { kwang, zone, plan: latestPlan };
+    }).sort((a, b) => a.zone.localeCompare(b.zone) || a.kwang.localeCompare(b.kwang));
+
+    // Process Attendance Data
+    const allDays = monthsQ3.flatMap(m => m.days);
+    const kwangAttStatus = listKwang.map(kwang => {
+      const zone = allUsersList.find(u => u['แขวง'] === kwang)?.Zone || 'ไม่ระบุ';
+      const atts = allAdminAtts.filter(a => a.kwang === kwang);
+      const weeks = allDays.map(d => {
+        const entry = atts.find(a => a.date === d.date);
+        return { date: d.date, label: d.label, entry };
+      });
+      return { kwang, zone, weeks };
+    }).sort((a, b) => a.zone.localeCompare(b.zone) || a.kwang.localeCompare(b.kwang));
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-orange-50 to-amber-100 p-4 md:p-8 flex flex-col items-center justify-center">
-        <div className="bg-white p-8 md:p-10 rounded-3xl shadow-2xl max-w-2xl w-full border border-white">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-black text-rose-600">🛠️ แอดมิน: กรอกสถิติย้อนหลัง (Q3)</h1>
-            <button onClick={() => setCurrentView('login')} className="text-gray-400 hover:text-gray-600 font-bold text-sm bg-gray-50 px-4 py-2 rounded-xl">✕ กลับหน้าแรก</button>
+      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+            <h1 className="text-2xl md:text-3xl font-black text-slate-800 flex items-center gap-3">
+              <span className="bg-slate-100 p-2.5 rounded-xl">⚙️</span> แผงควบคุมผู้ดูแลระบบ
+            </h1>
+            <button onClick={() => { setCurrentView('login'); setAdminTab('planTracker'); }} className="text-slate-500 hover:text-slate-800 font-bold bg-slate-100 px-5 py-2.5 rounded-xl transition w-full md:w-auto">✕ กลับหน้าแรก</button>
           </div>
-          <form onSubmit={handleSaveAdminBatch} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">ระดับ</label>
-                <select value={adminAttLevel} onChange={e => { setAdminAttLevel(e.target.value); setAdminAttArea(''); }} className="w-full border-2 border-gray-100 p-3 rounded-xl font-bold text-gray-700">
-                  <option value="แขวง">ระดับแขวง</option>
-                  <option value="เขต">ระดับเขต</option>
-                </select>
+
+          <div className="flex flex-col md:flex-row gap-3 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+            <button onClick={() => setAdminTab('planTracker')} className={`flex-1 py-3 px-4 rounded-xl font-bold transition ${adminTab === 'planTracker' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>📋 สถานะส่งแผนงาน</button>
+            <button onClick={() => setAdminTab('attTracker')} className={`flex-1 py-3 px-4 rounded-xl font-bold transition ${adminTab === 'attTracker' ? 'bg-orange-500 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>📊 เช็คการกรอกสถิติ</button>
+            <button onClick={() => setAdminTab('batchAtt')} className={`flex-1 py-3 px-4 rounded-xl font-bold transition ${adminTab === 'batchAtt' ? 'bg-rose-500 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}>🛠️ กรอกสถิติย้อนหลัง</button>
+          </div>
+
+          {adminTab === 'planTracker' && (
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="flex items-center gap-4 mb-6">
+                 <div className="flex items-center gap-2 text-sm font-bold text-gray-500"><span className="w-3 h-3 rounded-full bg-gray-200"></span> ยังไม่ส่ง</div>
+                 <div className="flex items-center gap-2 text-sm font-bold text-gray-500"><span className="w-3 h-3 rounded-full bg-blue-400"></span> รอเขตตรวจ</div>
+                 <div className="flex items-center gap-2 text-sm font-bold text-gray-500"><span className="w-3 h-3 rounded-full bg-green-400"></span> ตรวจแล้ว</div>
               </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">เลือก{adminAttLevel}</label>
-                <select value={adminAttArea} onChange={e => setAdminAttArea(e.target.value)} required className="w-full border-2 border-gray-100 p-3 rounded-xl font-bold text-orange-600 bg-white">
-                  <option value="">-- กรุณาเลือก --</option>
-                  {adminOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse whitespace-nowrap min-w-[800px]">
+                  <thead className="bg-slate-50 text-slate-600 text-sm">
+                    <tr>
+                      <th className="p-4 font-bold border-b border-slate-100">เขต</th>
+                      <th className="p-4 font-bold border-b border-slate-100">แขวง</th>
+                      <th className="p-4 font-bold border-b border-slate-100">สถานะล่าสุด</th>
+                      <th className="p-4 font-bold border-b border-slate-100">ส่งโดย / ผู้รับผิดชอบ</th>
+                      <th className="p-4 font-bold border-b border-slate-100">อัปเดตเมื่อ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kwangPlanStatus.map((row, idx) => (
+                      <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                        <td className="p-4 font-bold text-slate-700">{row.zone}</td>
+                        <td className="p-4 font-black text-indigo-700">{row.kwang}</td>
+                        <td className="p-4">
+                          {!row.plan ? <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">❌ ยังไม่ส่ง</span> :
+                           row.plan.status === 'draft' ? <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold border border-amber-200">📝 ร่าง</span> :
+                           row.plan.status === 'submitted' ? <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-200">⏳ รอเขตตรวจ</span> :
+                           row.plan.status === 'reviewed' ? <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">✅ ตรวจแล้ว</span> :
+                           <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">✅ ส่งแล้ว (V1)</span>}
+                        </td>
+                        <td className="p-4 text-sm font-medium text-slate-600">{row.plan ? row.plan.reporter : '-'}</td>
+                        <td className="p-4 text-sm font-medium text-slate-500">{row.plan ? new Date(row.plan.created_at).toLocaleString('th-TH') : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div className="max-h-80 overflow-y-auto space-y-6 pr-2 border-t border-b border-gray-100 py-4">
-              {monthsQ3.map(mGroup => (
-                <div key={mGroup.month} className="space-y-3">
-                  <h3 className="font-black text-orange-600 text-sm bg-orange-50 p-2 rounded-lg">{mGroup.month}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {mGroup.days.map(d => (
-                      <div key={d.date} className="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                        <span className="text-xs font-bold text-gray-600">{d.label}</span>
-                        <input type="number" min="0" placeholder="จำนวนคน" value={adminAttData[d.date] !== undefined ? adminAttData[d.date] : ''} onChange={e => setAdminAttData({...adminAttData, [d.date]: e.target.value})} className="w-24 border border-gray-200 p-1.5 rounded-lg text-center font-bold text-orange-600 bg-white" />
-                      </div>
+          )}
+
+          {adminTab === 'attTracker' && (
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <p className="text-slate-500 font-bold mb-4">ตารางเช็คการส่งสถิติมาร่วมรายสัปดาห์ (Q3)</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse whitespace-nowrap min-w-[1200px]">
+                  <thead className="bg-slate-50 text-slate-600 text-[11px] uppercase tracking-wider">
+                    <tr>
+                      <th className="p-3 font-bold border-b border-slate-100 sticky left-0 bg-slate-50 z-10 w-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">เขต</th>
+                      <th className="p-3 font-bold border-b border-slate-100 sticky left-20 bg-slate-50 z-10 w-32 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">แขวง</th>
+                      {allDays.map(d => (
+                        <th key={d.date} className="p-3 font-bold border-b border-slate-100 text-center w-24">
+                          {new Date(d.date).toLocaleDateString('th-TH', {day:'numeric', month:'short'})}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm">
+                    {kwangAttStatus.map((row, idx) => (
+                      <tr key={idx} className="border-b border-slate-50 hover:bg-orange-50/30 transition-colors">
+                        <td className="p-3 font-bold text-slate-700 sticky left-0 bg-white z-10">{row.zone}</td>
+                        <td className="p-3 font-black text-orange-700 sticky left-20 bg-white z-10">{row.kwang}</td>
+                        {row.weeks.map(w => (
+                          <td key={w.date} className="p-3 text-center border-l border-slate-50">
+                            {w.entry ? (
+                              <div className="group relative inline-block cursor-help">
+                                <span className="bg-green-100 text-green-700 font-black px-2 py-1 rounded-lg text-xs">{w.entry.count}</span>
+                                <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-50">
+                                  ส่งโดย: {w.entry.reporter || 'ไม่ระบุ'}<br/>
+                                  เวลา: {new Date(w.entry.created_at).toLocaleString('th-TH')}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-300 font-bold text-xs">-</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {adminTab === 'batchAtt' && (
+            <div className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-100 max-w-2xl mx-auto">
+              <div className="mb-6"><h2 className="text-xl font-black text-rose-600">กรอกสถิติย้อนหลัง (Q3)</h2></div>
+              <form onSubmit={handleSaveAdminBatch} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">ระดับ</label>
+                    <select value={adminAttLevel} onChange={e => { setAdminAttLevel(e.target.value); setAdminAttArea(''); }} className="w-full border-2 border-gray-100 p-3 rounded-xl font-bold text-gray-700">
+                      <option value="แขวง">ระดับแขวง</option>
+                      <option value="เขต">ระดับเขต</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">เลือก{adminAttLevel}</label>
+                    <select value={adminAttArea} onChange={e => setAdminAttArea(e.target.value)} required className="w-full border-2 border-gray-100 p-3 rounded-xl font-bold text-rose-600 bg-white">
+                      <option value="">-- กรุณาเลือก --</option>
+                      {adminOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
                   </div>
                 </div>
-              ))}
+                <div className="max-h-96 overflow-y-auto space-y-6 pr-2 border-t border-b border-gray-100 py-4">
+                  {monthsQ3.map(mGroup => (
+                    <div key={mGroup.month} className="space-y-3">
+                      <h3 className="font-black text-rose-600 text-sm bg-rose-50 p-2 rounded-lg">{mGroup.month}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {mGroup.days.map(d => (
+                          <div key={d.date} className="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                            <span className="text-xs font-bold text-gray-600">{d.label}</span>
+                            <input type="number" min="0" placeholder="จำนวน" value={adminAttData[d.date] !== undefined ? adminAttData[d.date] : ''} onChange={e => setAdminAttData({...adminAttData, [d.date]: e.target.value})} className="w-20 border border-gray-200 p-1.5 rounded-lg text-center font-bold text-rose-600 bg-white" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button type="submit" disabled={isSavingAtt} className="w-full bg-gradient-to-r from-rose-500 to-orange-500 text-white p-4 rounded-2xl font-black text-lg hover:shadow-lg transition-all disabled:opacity-70">
+                  {isSavingAtt ? 'กำลังบันทึก...' : '💾 บันทึกสถิติย้อนหลัง'}
+                </button>
+              </form>
             </div>
-            <button type="submit" disabled={isSavingAtt} className="w-full bg-gradient-to-r from-rose-500 to-orange-500 text-white p-4 rounded-2xl font-black text-lg hover:shadow-lg transition-all disabled:opacity-70">
-              {isSavingAtt ? 'กำลังบันทึกข้อมูล...' : '💾 บันทึกข้อมูลสถิติย้อนหลังทั้งหมด'}
-            </button>
-          </form>
+          )}
         </div>
       </div>
     )
