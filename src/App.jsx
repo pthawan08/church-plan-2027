@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V12 (Syntax Error Fixed + Ready for New DB)
+// ✨ VERSION: ULTIMATE V13 (Fix Member Save Error + Audit Trail + Auto Fallback)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -168,7 +168,14 @@ export default function App() {
     if (error || !data) return;
     
     if (level === 'แขวง') {
-      setMyPlans(data.filter(p => p.level === 'แขวง' && p.area === area));
+      const kwangPlans = data.filter(p => p.level === 'แขวง' && p.area === area);
+      setMyPlans(kwangPlans);
+      const latestPlan = kwangPlans[0];
+      if (latestPlan && latestPlan.plan_data) {
+        setViewingPlan(latestPlan);
+        setPlanForm(latestPlan.plan_data);
+        setIsReadOnly(latestPlan.status === 'submitted' || latestPlan.status === 'reviewed');
+      }
     } else if (level === 'เขต') {
       const kwangsInZone = [...new Set(memData.filter(m => m.Zone?.trim() === area).map(m => m['แขวง']?.trim()).filter(Boolean))];
       setMyPlans(data.filter(p => p.level === 'แขวง' && kwangsInZone.includes(p.area?.trim())));
@@ -291,9 +298,6 @@ export default function App() {
       await fetchPlans(planningLevel, selectedArea, members);
       
       if (statusToSave === 'submitted') {
-         setPlanForm(defaultPlanForm);
-         setViewingPlan(null);
-         setIsReadOnly(false);
          const areaKey = planningLevel === 'คริสตจักร' ? 'คริสตจักร' : selectedArea;
          localStorage.removeItem('planForm_' + areaKey);
          setCurrentView('success');
@@ -374,38 +378,99 @@ export default function App() {
   }
 
   const handleSaveMember = async (e) => {
-    e.preventDefault(); setIsSaving(true)
+    e.preventDefault();
+    setIsSaving(true);
     try {
-      const combinedName = `${memberForm.firstName} ${memberForm.lastName}`.trim()
-      
-      const payload = { 
-        'ชื่อ-สกุล': combinedName, 
-        'title': memberForm.title,
-        'nick_name': memberForm.nickName,
-        'ชื่อเล่น': memberForm.nickName,
-        'วันเกิด': memberForm.dob, 
-        'เบอร์โทร': memberForm.phone, 
-        'อีเมล': memberForm.email, 
-        'สถานะ': memberForm.role, 
-        'หน่วย': memberForm.unit, 
-        'Cell': memberForm.cell, 
-        'Zone': memberForm.zone, 
-        'แขวง': memberForm.kwang 
+      const combinedName = `${memberForm.firstName} ${memberForm.lastName}`.trim();
+      const actorName = userName || 'ผู้ใช้งานระบบ';
+
+      const basePayload = {
+        'ชื่อ-สกุล': combinedName,
+        'ชื่อเล่น': memberForm.nickName || null,
+        'วันเกิด': memberForm.dob || null,
+        'เบอร์โทร': memberForm.phone || null,
+        'สถานะ': memberForm.role || null,
+        'หน่วย': memberForm.unit || null,
+        'Cell': memberForm.cell || null,
+        'Zone': memberForm.zone || null,
+        'แขวง': memberForm.kwang || null
+      };
+
+      const titlePayload = {
+        ...basePayload,
+        'title': memberForm.title || null
+      };
+
+      const fullPayload = {
+        ...titlePayload,
+        'updated_by': actorName
+      };
+      if (!memberForm.id) {
+        fullPayload.created_by = actorName;
       }
-      
+
+      const tryUpdate = async (id, dataObj) => {
+        return await supabase.from('members').update(dataObj).eq('id', id);
+      };
+
+      const maxId = allUsersList.reduce((max, item) => (Number(item.id) > max ? Number(item.id) : max), 0);
+
+      const tryInsert = async (dataObj) => {
+        const res = await supabase.from('members').insert([dataObj]);
+        if (res.error && (res.error.code === '23505' || res.error.message?.includes('duplicate key'))) {
+          return await supabase.from('members').insert([{ ...dataObj, id: maxId + 1 }]);
+        }
+        return res;
+      };
+
+      let result;
       if (memberForm.id) {
-        const { error } = await supabase.from('members').update(payload).eq('id', memberForm.id)
-        if (error) throw error
+        result = await tryUpdate(memberForm.id, fullPayload);
+        if (result.error) {
+          result = await tryUpdate(memberForm.id, titlePayload);
+        }
+        if (result.error) {
+          result = await tryUpdate(memberForm.id, basePayload);
+        }
       } else {
-        const { error } = await supabase.from('members').insert([payload])
-        if (error) throw error
+        result = await tryInsert(fullPayload);
+        if (result.error) {
+          result = await tryInsert(titlePayload);
+        }
+        if (result.error) {
+          result = await tryInsert(basePayload);
+        }
       }
-      await fetchMembers(planningLevel, selectedArea)
-      const { data: allUsers } = await supabase.from('members').select('*')
-      setAllUsersList(allUsers || [])
-      setIsModalOpen(false)
-    } catch (error) { alert('บันทึกไม่สำเร็จ: ' + error.message) } finally { setIsSaving(false) }
+
+      if (result.error) throw result.error;
+
+      const auditLog = JSON.parse(localStorage.getItem('member_audit_log') || '{}');
+      auditLog[combinedName] = {
+        action: memberForm.id ? 'แก้ไขล่าสุดโดย' : 'เพิ่มโดย',
+        by: actorName,
+        at: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+      };
+      localStorage.setItem('member_audit_log', JSON.stringify(auditLog));
+
+      await fetchMembers(planningLevel, selectedArea);
+      const { data: allUsers } = await supabase.from('members').select('*');
+      setAllUsersList(allUsers || []);
+      setIsModalOpen(false);
+      alert('✅ บันทึกข้อมูลสมาชิกเรียบร้อยแล้วครับ!');
+    } catch (error) {
+      alert('บันทึกไม่สำเร็จ: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
   }
+
+  const localAuditLog = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('member_audit_log') || '{}');
+    } catch (e) {
+      return {};
+    }
+  }, [members]);
 
   const uniqueZoneCount = [...new Set(members.map(m => m.Zone?.trim()).filter(z => z))].length
   const uniqueKwangCount = [...new Set(members.map(m => m['แขวง']?.trim()).filter(k => k))].length
@@ -598,7 +663,7 @@ export default function App() {
                 <button onClick={() => window.print()} className="flex-1 md:flex-none text-orange-700 bg-orange-100 hover:bg-orange-200 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-sm">
                   🖨 ปริ้นรายงาน
                 </button>
-                <button onClick={() => {setCurrentView('login'); setSelectedArea(''); setUserName('');}} className="text-rose-600 bg-rose-50 hover:bg-rose-100 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center">ออกจากระบบ</button>
+                <button onClick={() => {setCurrentView('login'); setSelectedArea(''); setUserName(''); setViewingPlan(null); setIsReadOnly(false);}} className="text-rose-600 bg-rose-50 hover:bg-rose-100 font-bold px-5 py-3 rounded-2xl transition-all flex items-center justify-center">ออกจากระบบ</button>
               </div>
             </div>
           </div>
@@ -632,7 +697,6 @@ export default function App() {
             )}
           </div>
 
-          {/* กล่อง 4 เสาหลัก */}
           {planningLevel === 'คริสตจักร' && (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:p-2 print:mt-4 print:border-none print:shadow-none">
               <div className="text-center mb-8 print:mb-4">
@@ -667,7 +731,6 @@ export default function App() {
             </div>
           )}
 
-          {/* ระบบตารางแสดงประวัติแผนงาน */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
@@ -721,7 +784,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* สรุปเป้าหมายรวมของเขต */}
           {planningLevel === 'เขต' && !viewingPlan && (
             <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 md:p-10 rounded-3xl shadow-sm border border-blue-100 mt-6 avoid-page-break print:p-4 print:border-gray-300 print:shadow-none print:mt-4">
               <div className="text-center mb-8 print:mb-4">
@@ -749,7 +811,6 @@ export default function App() {
             </div>
           )}
 
-          {/* สถิติการมาร่วม (กราฟ) */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:p-0 print:border-none print:shadow-none print:mt-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div className="flex items-center gap-4">
@@ -808,7 +869,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* --- ตารางสรุปสมาชิกคริสตจักร / รายชื่อสมาชิก --- */}
         <div className="max-w-6xl mx-auto print:mt-4">
           {planningLevel === 'คริสตจักร' ? (
             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 avoid-page-break print:shadow-none print:border-none print:p-0 print:mt-4">
@@ -843,9 +903,29 @@ export default function App() {
                           <tr><th className="p-2 font-bold">ชื่อ-สกุล</th><th className="p-2 font-bold">เบอร์โทร</th><th className="p-2 font-bold text-center">อายุ/เพศ</th><th className="p-2 font-bold">สถานะ</th><th className="p-2 font-bold text-center print:hidden">จัดการ</th></tr>
                         </thead>
                         <tbody className="bg-white text-sm print:text-xs">
-                          {groupedMembers[cellName].map((m, i) => (
-                            <tr key={m.id || i} className="border-b border-gray-50 print:border-gray-200 hover:bg-slate-50 transition-colors"><td className="p-2 font-bold text-gray-700">{m['ชื่อ-สกุล']} {m['ชื่อเล่น'] ? <span className="text-gray-400 font-medium ml-1">({m['ชื่อเล่น']})</span> : ''}</td><td className="p-2 text-gray-500">{m['เบอร์โทร'] || '-'}</td><td className="p-2 text-gray-500 text-center">{m['อายุ'] ? `${m['อายุ']} ปี` : '-'}</td><td className="p-2"><span className={`px-2 py-0.5 rounded-full text-[10px] font-black print:border print:border-gray-300 print:bg-white print:text-black ${cellLeaderRoles.includes(m['สถานะ']) ? 'bg-orange-100 text-orange-700' : mentorRoles.includes(m['สถานะ']) ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{m['สถานะ'] || 'สมาชิก'}</span></td><td className="p-2 text-center print:hidden"><button onClick={() => handleOpenEdit(m)} className="text-sky-600 bg-sky-50 px-3 py-1 rounded-lg text-xs font-bold">แก้ไข</button></td></tr>
-                          ))}
+                          {groupedMembers[cellName].map((m, i) => {
+                            const fullNameKey = m['ชื่อ-สกุล']?.trim();
+                            const auditInfo = localAuditLog[fullNameKey];
+                            const dbEditor = m.updated_by || m.created_by;
+                            return (
+                              <tr key={m.id || i} className="border-b border-gray-50 print:border-gray-200 hover:bg-slate-50 transition-colors">
+                                <td className="p-2 font-bold text-gray-700">
+                                  <div>
+                                    {m.title ? `${m.title} ` : ''}{m['ชื่อ-สกุล']} {m['ชื่อเล่น'] ? <span className="text-gray-400 font-medium ml-1">({m['ชื่อเล่น']})</span> : ''}
+                                  </div>
+                                  {(dbEditor || auditInfo) && (
+                                    <div className="text-[10px] text-emerald-600 font-medium print:hidden">
+                                      ✓ {dbEditor ? `อัปเดตโดย: ${dbEditor}` : `${auditInfo.action}: ${auditInfo.by} (${auditInfo.at})`}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-2 text-gray-500">{m['เบอร์โทร'] || '-'}</td>
+                                <td className="p-2 text-gray-500 text-center">{m['อายุ'] ? `${m['อายุ']} ปี` : '-'}</td>
+                                <td className="p-2"><span className={`px-2 py-0.5 rounded-full text-[10px] font-black print:border print:border-gray-300 print:bg-white print:text-black ${cellLeaderRoles.includes(m['สถานะ']) ? 'bg-orange-100 text-orange-700' : mentorRoles.includes(m['สถานะ']) ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{m['สถานะ'] || 'สมาชิก'}</span></td>
+                                <td className="p-2 text-center print:hidden"><button onClick={() => handleOpenEdit(m)} className="text-sky-600 bg-sky-50 px-3 py-1 rounded-lg text-xs font-bold hover:bg-sky-100 transition">แก้ไข</button></td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -856,7 +936,6 @@ export default function App() {
           )}
         </div>
 
-        {/* --- ✨ แบบฟอร์ม 6 มิติ --- */}
         {(planningLevel === 'แขวง' || viewingPlan) && (
           <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0 force-new-page">
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
@@ -1003,7 +1082,6 @@ export default function App() {
 
                 </div>
 
-                {/* ส่วนปุ่มกดและคอมเมนต์ด้านล่าง */}
                 {isReadOnly ? (
                    <div className="pt-8 print:hidden space-y-4 border-t-2 border-gray-100 mt-6">
                       {viewingPlan?.feedback && (
@@ -1030,7 +1108,7 @@ export default function App() {
 
                       <div className="flex flex-col md:flex-row gap-4 pt-4">
                          <button type="button" onClick={() => window.print()} className="w-full md:w-1/2 bg-orange-100 text-orange-700 font-bold py-4 rounded-xl hover:bg-orange-200 transition">🖨 ปริ้นแผนงานนี้ (PDF)</button>
-                         <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">❌ ปิดหน้าต่างนี้</button>
+                         <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">📝 สร้างแผนงานฉบับใหม่</button>
                       </div>
                    </div>
                 ) : (
@@ -1048,7 +1126,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Modal เพิ่มสถิติ */}
         {isAttModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 border border-white">
@@ -1062,7 +1139,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Modal เพิ่มสมาชิก */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 md:p-10 border border-white">
