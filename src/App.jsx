@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V19 (Bulletproof Fallback for Missing Columns)
+// ✨ VERSION: ULTIMATE V20 (Final Print Layout & BarChart Fix)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -410,18 +410,23 @@ export default function App() {
         'แขวง': memberForm.kwang || null
       };
 
-      const fullPayload = {
+      const titlePayload = {
         ...basePayload,
-        'title': memberForm.title || null,
-        'updated_by': actorName,
-        'created_by': actorName
+        'title': memberForm.title || null
       };
+
+      const fullPayload = {
+        ...titlePayload,
+        'updated_by': actorName
+      };
+      if (!memberForm.id) {
+        fullPayload.created_by = actorName;
+      }
 
       const maxId = allUsersList.reduce((max, item) => (Number(item.id) > max ? Number(item.id) : max), 0);
 
       let result;
       if (memberForm.id) {
-        // ✨ V19: ลองอัปเดตแบบเต็ม ถ้าพังให้ใช้แบบพื้นฐานทันที
         result = await supabase.from('members').update(fullPayload).eq('id', memberForm.id);
         if (result.error) {
            result = await supabase.from('members').update(basePayload).eq('id', memberForm.id);
@@ -493,7 +498,6 @@ export default function App() {
       const memberIds = membersInCell.map(m => m.id);
       const actorName = userName || 'ผู้ใช้งานระบบ';
       
-      // ✨ V19 Fallback: ถ้าใส่ประวัติคนแก้แล้วพัง ให้ลองแบบเบสิคทันที
       let res = await supabase
         .from('members')
         .update({ Cell: newCellName.trim(), updated_by: actorName })
@@ -982,12 +986,14 @@ export default function App() {
               </div>
             </div>
             
-            <div className="h-[450px] w-full mt-4 print:h-[250px] print:overflow-hidden print:mb-6">
+            {/* ✨ V20: แก้ไขกรอบให้สูงขึ้นตอนปริ้น (h-[350px]) และไม่ปิดบังข้อความที่ล้น (overflow-visible) */}
+            <div className="h-[450px] w-full mt-4 print:h-[350px] print:overflow-visible print:mb-10">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="99%" height="100%">
-                  <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
+                  {/* ✨ V20: ดันกราฟขึ้นและเว้นที่ให้แกน X เพื่อไม่ให้แหว่ง (bottom: 80, height: 80) */}
+                  <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={60} />
+                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} tickMargin={5} />
                     <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
                     <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={false}>
