@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V17 (Bulk Rename Cell Feature added)
+// ✨ VERSION: ULTIMATE V18 (Fix Bulk Rename "updated_by" Column Error)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -498,7 +498,7 @@ export default function App() {
     }
   }
 
-  // ✨ V17: ฟังก์ชันสำหรับเปลี่ยนชื่อกลุ่มเซลล์รวดเดียว (Bulk Rename Cell)
+  // ✨ V18: อัปเดตฟังก์ชันเปลี่ยนชื่อเซลล์ให้มี Fallback ดักจับคอลัมน์ updated_by เหมือนตอนแก้ไขรายบุคคล
   const handleRenameCell = async (oldCellName, membersInCell) => {
     if (oldCellName === 'ไม่มีระบุกลุ่มเซลล์') {
       alert('ไม่สามารถเปลี่ยนชื่อกลุ่มเริ่มต้นได้ครับ กรุณากด "แก้ไข/ย้าย" ที่สมาชิกแต่ละคนเพื่อย้ายเข้ากลุ่มครับ');
@@ -507,7 +507,6 @@ export default function App() {
     
     const newCellName = window.prompt(`✏️ เปลี่ยนชื่อกลุ่มเซลล์: "${oldCellName}"\n\nกรุณาพิมพ์ชื่อกลุ่มเซลล์ใหม่ที่ต้องการ (สมาชิกทุกคนในกลุ่มนี้จะถูกย้ายไปชื่อใหม่โดยอัตโนมัติ):`, oldCellName);
     
-    // ถ้ายกเลิก ไม่พิมพ์ หรือพิมพ์ชื่อเดิม ให้หยุดทำงาน
     if (!newCellName || newCellName.trim() === '' || newCellName.trim() === oldCellName) return;
     
     setIsSaving(true);
@@ -515,7 +514,8 @@ export default function App() {
       const memberIds = membersInCell.map(m => m.id);
       const actorName = userName || 'ผู้ใช้งานระบบ';
       
-      const { error } = await supabase
+      // ลองอัปเดตแบบใส่ updated_by ก่อน
+      let { error } = await supabase
         .from('members')
         .update({ 
           Cell: newCellName.trim(),
@@ -523,9 +523,19 @@ export default function App() {
         })
         .in('id', memberIds);
         
+      // ถ้าเจอปัญหา column updated_by ไม่มี ให้ลองใหม่โดยไม่ส่ง updated_by
+      if (error && error.message.includes('updated_by')) {
+         const fallbackResult = await supabase
+          .from('members')
+          .update({ 
+            Cell: newCellName.trim()
+          })
+          .in('id', memberIds);
+         error = fallbackResult.error;
+      }
+        
       if (error) throw error;
       
-      // บันทึกประวัติการย้ายกลุ่มลง LocalStorage ให้ทุกคนที่โดนย้าย
       const auditLog = JSON.parse(localStorage.getItem('member_audit_log') || '{}');
       const timeNow = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
       membersInCell.forEach(m => {
@@ -1003,10 +1013,8 @@ export default function App() {
             <div className="h-[450px] w-full mt-4 print:h-[250px] print:overflow-hidden print:mb-6">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="99%" height="100%">
-                  {/* ✨ V17: ปรับ margin bottom ลงเหลือ 60 เพื่อคืนที่ว่างให้แกน X บนหน้าเว็บ */}
                   <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    {/* ✨ V17: ปรับ height เหลือ 60 และเอา tickMargin ออก เพื่อป้องกันข้อความวันที่แกน X หลุดจอ */}
                     <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={60} />
                     <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
@@ -1058,7 +1066,6 @@ export default function App() {
                     <div className="bg-slate-50 print:bg-gray-100 border-b border-gray-100 print:border-gray-400 p-3 flex justify-between items-center">
                       <h3 className="font-black text-slate-700 text-base print:text-sm flex items-center gap-2">
                         <span className="text-sky-500 print:hidden">❖</span> กลุ่ม: {cellName}
-                        {/* ✨ V17: ปุ่มเปลี่ยนชื่อกลุ่มเซลล์รวดเดียว */}
                         <button onClick={() => handleRenameCell(cellName, groupedMembers[cellName])} className="print:hidden ml-2 text-[10px] bg-white border border-gray-200 text-gray-500 hover:text-orange-600 hover:border-orange-300 px-2 py-1 rounded-lg transition shadow-sm font-bold">
                           ✏️ เปลี่ยนชื่อทั้งกลุ่ม
                         </button>
