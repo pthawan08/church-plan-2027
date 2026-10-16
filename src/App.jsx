@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V18 (Fix Bulk Rename "updated_by" Column Error)
+// ✨ VERSION: ULTIMATE V18 (Fix Bulk Rename updated_by Error)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -423,36 +423,36 @@ export default function App() {
         fullPayload.created_by = actorName;
       }
 
-      const tryUpdate = async (id, dataObj) => {
-        return await supabase.from('members').update(dataObj).eq('id', id);
-      };
-
       const maxId = allUsersList.reduce((max, item) => (Number(item.id) > max ? Number(item.id) : max), 0);
 
-      const tryInsert = async (dataObj) => {
-        const res = await supabase.from('members').insert([dataObj]);
-        if (res.error && (res.error.code === '23505' || res.error.message?.includes('duplicate key'))) {
-          return await supabase.from('members').insert([{ ...dataObj, id: maxId + 1 }]);
-        }
-        return res;
-      };
-
+      // ลองอัปเดตแบบส่งคอลัมน์ทั้งหมด (มี updated_by ด้วย)
       let result;
       if (memberForm.id) {
-        result = await tryUpdate(memberForm.id, fullPayload);
-        if (result.error) {
-          result = await tryUpdate(memberForm.id, titlePayload);
+        result = await supabase.from('members').update(fullPayload).eq('id', memberForm.id);
+        // ถ้าเกิด error ที่เกิดจากคอลัมน์ updated_by ให้ทำการส่งใหม่แบบไม่เอา updated_by 
+        if (result.error && result.error.message?.includes('updated_by')) {
+          result = await supabase.from('members').update(titlePayload).eq('id', memberForm.id);
         }
-        if (result.error) {
-          result = await tryUpdate(memberForm.id, basePayload);
+        // ถ้ายัง error อีกแบบเดียวกันให้เหลือเฉพาะข้อมูลหลัก (รองรับกรณีคอลัมน์ title หาย)
+        if (result.error && result.error.message?.includes('title')) {
+           result = await supabase.from('members').update(basePayload).eq('id', memberForm.id);
         }
       } else {
-        result = await tryInsert(fullPayload);
-        if (result.error) {
-          result = await tryInsert(titlePayload);
+        result = await supabase.from('members').insert([fullPayload]);
+        if (result.error && (result.error.code === '23505' || result.error.message?.includes('duplicate key'))) {
+          result = await supabase.from('members').insert([{ ...fullPayload, id: maxId + 1 }]);
         }
-        if (result.error) {
-          result = await tryInsert(basePayload);
+        if (result.error && result.error.message?.includes('created_by')) {
+          result = await supabase.from('members').insert([titlePayload]);
+          if (result.error && (result.error.code === '23505' || result.error.message?.includes('duplicate key'))) {
+             result = await supabase.from('members').insert([{ ...titlePayload, id: maxId + 1 }]);
+          }
+        }
+        if (result.error && result.error.message?.includes('title')) {
+          result = await supabase.from('members').insert([basePayload]);
+          if (result.error && (result.error.code === '23505' || result.error.message?.includes('duplicate key'))) {
+             result = await supabase.from('members').insert([{ ...basePayload, id: maxId + 1 }]);
+          }
         }
       }
 
@@ -498,7 +498,6 @@ export default function App() {
     }
   }
 
-  // ✨ V18: อัปเดตฟังก์ชันเปลี่ยนชื่อเซลล์ให้มี Fallback ดักจับคอลัมน์ updated_by เหมือนตอนแก้ไขรายบุคคล
   const handleRenameCell = async (oldCellName, membersInCell) => {
     if (oldCellName === 'ไม่มีระบุกลุ่มเซลล์') {
       alert('ไม่สามารถเปลี่ยนชื่อกลุ่มเริ่มต้นได้ครับ กรุณากด "แก้ไข/ย้าย" ที่สมาชิกแต่ละคนเพื่อย้ายเข้ากลุ่มครับ');
@@ -514,7 +513,7 @@ export default function App() {
       const memberIds = membersInCell.map(m => m.id);
       const actorName = userName || 'ผู้ใช้งานระบบ';
       
-      // ลองอัปเดตแบบใส่ updated_by ก่อน
+      // ✨ V18 Fallback: ลองอัปเดตแบบใส่ updated_by ก่อน ถ้าหาคอลัมน์นี้ไม่เจอให้ใช้ระบบสำรอง (Fallback)
       let { error } = await supabase
         .from('members')
         .update({ 
@@ -523,8 +522,7 @@ export default function App() {
         })
         .in('id', memberIds);
         
-      // ถ้าเจอปัญหา column updated_by ไม่มี ให้ลองใหม่โดยไม่ส่ง updated_by
-      if (error && error.message.includes('updated_by')) {
+      if (error && error.message?.includes('updated_by')) {
          const fallbackResult = await supabase
           .from('members')
           .update({ 
@@ -1257,6 +1255,7 @@ export default function App() {
 
                 </div>
 
+                {/* ส่วนปุ่มกดและคอมเมนต์ด้านล่าง */}
                 {isReadOnly ? (
                    <div className="pt-8 print:hidden space-y-4 border-t-2 border-gray-100 mt-6">
                       {viewingPlan?.feedback && (
@@ -1301,6 +1300,7 @@ export default function App() {
           </div>
         )}
 
+        {/* Modal เพิ่มสถิติ */}
         {isAttModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 border border-white">
@@ -1314,6 +1314,7 @@ export default function App() {
           </div>
         )}
 
+        {/* Modal เพิ่ม / แก้ไข / ย้าย / ลบ สมาชิก */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 md:p-10 border border-white">
