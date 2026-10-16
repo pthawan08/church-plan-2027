@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V15 (District Overview + Delete Member + Print Layout Fix)
+// ✨ VERSION: ULTIMATE V16 (Smart Dropdowns + Graph Axis Fix + Print Fix)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -53,7 +53,6 @@ export default function App() {
 
   const iCls = `flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
   const nCls = `w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
-  // ✨ อัปเดต V15: แก้ไขกล่องข้อความให้ขยายตามจริงตอนปริ้น ไม่ให้แหว่ง
   const tCls = `w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-20 print:h-auto print:min-h-[100px] print:overflow-visible transition-colors print:border-gray-400 print:text-black print:rounded-none print:p-2 ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`;
 
   const b = (f) => ({ 
@@ -507,17 +506,38 @@ export default function App() {
     }
   }, [members]);
 
+  // ✨ V16: อัปเกรด Dropdown แขวง, หน่วย, เซลล์ ให้กรองจากฐานข้อมูลทั้งหมด (allUsersList) เพื่อให้รองรับการย้ายกลุ่มข้ามแขวงได้
+  const dynamicKwangs = useMemo(() => {
+    if (!memberForm.zone) return listKwang;
+    return [...new Set(allUsersList.filter(m => m.Zone?.trim() === memberForm.zone.trim()).map(m => m['แขวง']?.trim()).filter(Boolean))].sort();
+  }, [allUsersList, listKwang, memberForm.zone]);
+
+  const sortedUnits = useMemo(() => {
+    let filtered = allUsersList;
+    if (memberForm.kwang) {
+      filtered = filtered.filter(m => m['แขวง']?.trim() === memberForm.kwang.trim());
+    } else if (memberForm.zone) {
+      filtered = filtered.filter(m => m.Zone?.trim() === memberForm.zone.trim());
+    }
+    return [...new Set(filtered.map(m => m['หน่วย']?.trim()).filter(Boolean))].sort();
+  }, [allUsersList, memberForm.kwang, memberForm.zone]);
+
+  const dynamicCells = useMemo(() => {
+    let filtered = allUsersList;
+    if (memberForm.unit) {
+      filtered = filtered.filter(m => m['หน่วย']?.trim() === memberForm.unit.trim());
+    } else if (memberForm.kwang) {
+      filtered = filtered.filter(m => m['แขวง']?.trim() === memberForm.kwang.trim());
+    } else if (memberForm.zone) {
+      filtered = filtered.filter(m => m.Zone?.trim() === memberForm.zone.trim());
+    }
+    return [...new Set(filtered.map(m => m.Cell?.trim()).filter(Boolean))].sort();
+  }, [allUsersList, memberForm.unit, memberForm.kwang, memberForm.zone]);
+
   const uniqueZoneCount = [...new Set(members.map(m => m.Zone?.trim()).filter(z => z))].length
   const uniqueKwangCount = [...new Set(members.map(m => m['แขวง']?.trim()).filter(k => k))].length
   const uniqueUnitCount = [...new Set(members.map(m => m['หน่วย']?.trim()).filter(u => u))].length
   const uniqueCellCount = [...new Set(members.map(m => m.Cell?.trim()).filter(c => c))].length
-  
-  const sortedUnits = [...new Set(members.map(m => m['หน่วย']?.trim()).filter(Boolean))].sort();
-
-  const dynamicCells = useMemo(() => {
-    if (!memberForm.unit) return [...new Set(members.map(m => m.Cell?.trim()).filter(Boolean))].sort();
-    return [...new Set(members.filter(m => m['หน่วย']?.trim() === memberForm.unit.trim()).map(m => m.Cell?.trim()).filter(Boolean))].sort();
-  }, [members, memberForm.unit]);
 
   const groupedMembers = members.reduce((acc, member) => {
     const cellName = member.Cell?.trim() || 'ไม่มีระบุกลุ่มเซลล์';
@@ -932,11 +952,11 @@ export default function App() {
             <div className="h-[450px] w-full mt-4 print:h-[250px] print:overflow-hidden print:mb-6">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="99%" height="100%">
-                  {/* ✨ อัปเดต V15: เพิ่ม bottom margin เป็น 80 ไม่ให้กราฟแหว่งขอบล่างตอนปริ้น */}
-                  <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 80 }}>
+                  {/* ✨ V16: ปรับ margin bottom กลับเป็น 60 ให้สมดุล */}
+                  <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    {/* ✨ อัปเดต V15: เพิ่ม tickMargin=10 ผลักข้อความแกน X ให้พ้นกรอบ */}
-                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} tickMargin={10} />
+                    {/* ✨ V16: ปรับ height เหลือ 60 และเอา tickMargin ออก เพื่อป้องกันวันที่ตกขอบหน้าจอ */}
+                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={60} />
                     <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
                     <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={false}>
@@ -1170,7 +1190,6 @@ export default function App() {
 
                 </div>
 
-                {/* ส่วนปุ่มกดและคอมเมนต์ด้านล่าง */}
                 {isReadOnly ? (
                    <div className="pt-8 print:hidden space-y-4 border-t-2 border-gray-100 mt-6">
                       {viewingPlan?.feedback && (
@@ -1197,11 +1216,7 @@ export default function App() {
 
                       <div className="flex flex-col md:flex-row gap-4 pt-4">
                          <button type="button" onClick={() => window.print()} className="w-full md:w-1/2 bg-orange-100 text-orange-700 font-bold py-4 rounded-xl hover:bg-orange-200 transition">🖨 ปริ้นแผนงานนี้ (PDF)</button>
-                         {planningLevel === 'แขวง' ? (
-                           <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">📝 สร้างแผนงานฉบับใหม่ / ล้างฟอร์ม</button>
-                         ) : (
-                           <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">❌ ปิดหน้าต่างดูข้อมูล</button>
-                         )}
+                         <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">📝 สร้างแผนงานฉบับใหม่</button>
                       </div>
                    </div>
                 ) : (
@@ -1219,7 +1234,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Modal เพิ่มสถิติ */}
         {isAttModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 border border-white">
@@ -1233,7 +1247,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Modal เพิ่ม / แก้ไข / ย้าย / ลบ สมาชิก */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 md:p-10 border border-white">
@@ -1261,15 +1274,28 @@ export default function App() {
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">แขวง (Kwang) <span className="text-red-500">*</span></label>
                       <input type="text" list="kwang-list" required placeholder="เลือกหรือพิมพ์ชื่อแขวง" value={memberForm.kwang} onChange={e => setMemberForm({...memberForm, kwang: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-orange-50 focus:border-orange-400 outline-none transition font-bold text-orange-700" />
-                      <datalist id="kwang-list">{listKwang.map(k => <option key={k} value={k} />)}</datalist>
+                      <datalist id="kwang-list">{dynamicKwangs.map(k => <option key={k} value={k} />)}</datalist>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {/* ✨ V16: เปลี่ยนเป็น Input + Datalist เพื่อให้ดึงของเก่ามาแสดงได้แม้จะไม่ตรงเป๊ะ */}
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">สถานะ (Role) <span className="text-red-500">*</span></label>
-                      <select required value={memberForm.role} onChange={e => setMemberForm({...memberForm, role: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition font-medium">
-                        <option value="">Select Role</option><option value="ผจ.">ผู้สนใจ (ผจ.)</option><option value="ผช.ใหม่">ผู้เชื่อใหม่ (ผช.ใหม่)</option><option value="ผช.">ผู้เชื่อ (ผช.)</option><option value="สมาชิก">สมาชิก</option><option value="พี่เลี้ยง">พี่เลี้ยง (พล.)</option><option value="ผช.หนซ.">ผช.หนซ.</option><option value="หนซ.">หัวหน้าเซลล์ (หนซ.)</option><option value="หนน.">หัวหน้าหน่วย (หนน.)</option><option value="หนข.">หัวหน้าแขวง (หนข.)</option><option value="หัวหน้าเขต">หัวหน้าเขต</option><option value="ศบ.">ศิษยาภิบาล (ศบ.)</option><option value="ศบ.อาวุโส">ศิษยาภิบาลอาวุโส (ศบ.อาวุโส)</option>
-                      </select>
+                      <input type="text" list="role-list" required placeholder="เลือกหรือพิมพ์สถานะ" value={memberForm.role} onChange={e => setMemberForm({...memberForm, role: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition font-medium text-blue-800" />
+                      <datalist id="role-list">
+                        <option value="ผู้สนใจ (ผจ.)" />
+                        <option value="ผู้เชื่อใหม่ (ผช.ใหม่)" />
+                        <option value="ผู้เชื่อ (ผช.)" />
+                        <option value="สมาชิก" />
+                        <option value="พี่เลี้ยง (พล.)" />
+                        <option value="ผช.หนซ." />
+                        <option value="หัวหน้าเซลล์ (หนซ.)" />
+                        <option value="หัวหน้าหน่วย (หนน.)" />
+                        <option value="หัวหน้าแขวง (หนข.)" />
+                        <option value="หัวหน้าเขต" />
+                        <option value="ศิษยาภิบาล (ศบ.)" />
+                        <option value="ศบ.อาวุโส" />
+                      </datalist>
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">หน่วย (Unit)</label>
