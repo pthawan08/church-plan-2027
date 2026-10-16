@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V16 (Smart Dropdowns + Graph Axis Fix + Print Fix)
+// ✨ VERSION: ULTIMATE V17 (Bulk Rename Cell Feature added)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -498,6 +498,58 @@ export default function App() {
     }
   }
 
+  // ✨ V17: ฟังก์ชันสำหรับเปลี่ยนชื่อกลุ่มเซลล์รวดเดียว (Bulk Rename Cell)
+  const handleRenameCell = async (oldCellName, membersInCell) => {
+    if (oldCellName === 'ไม่มีระบุกลุ่มเซลล์') {
+      alert('ไม่สามารถเปลี่ยนชื่อกลุ่มเริ่มต้นได้ครับ กรุณากด "แก้ไข/ย้าย" ที่สมาชิกแต่ละคนเพื่อย้ายเข้ากลุ่มครับ');
+      return;
+    }
+    
+    const newCellName = window.prompt(`✏️ เปลี่ยนชื่อกลุ่มเซลล์: "${oldCellName}"\n\nกรุณาพิมพ์ชื่อกลุ่มเซลล์ใหม่ที่ต้องการ (สมาชิกทุกคนในกลุ่มนี้จะถูกย้ายไปชื่อใหม่โดยอัตโนมัติ):`, oldCellName);
+    
+    // ถ้ายกเลิก ไม่พิมพ์ หรือพิมพ์ชื่อเดิม ให้หยุดทำงาน
+    if (!newCellName || newCellName.trim() === '' || newCellName.trim() === oldCellName) return;
+    
+    setIsSaving(true);
+    try {
+      const memberIds = membersInCell.map(m => m.id);
+      const actorName = userName || 'ผู้ใช้งานระบบ';
+      
+      const { error } = await supabase
+        .from('members')
+        .update({ 
+          Cell: newCellName.trim(),
+          updated_by: actorName 
+        })
+        .in('id', memberIds);
+        
+      if (error) throw error;
+      
+      // บันทึกประวัติการย้ายกลุ่มลง LocalStorage ให้ทุกคนที่โดนย้าย
+      const auditLog = JSON.parse(localStorage.getItem('member_audit_log') || '{}');
+      const timeNow = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      membersInCell.forEach(m => {
+        const fullNameKey = m['ชื่อ-สกุล']?.trim();
+        auditLog[fullNameKey] = {
+          action: 'เปลี่ยนชื่อกลุ่มรวดเดียวโดย',
+          by: actorName,
+          at: timeNow
+        };
+      });
+      localStorage.setItem('member_audit_log', JSON.stringify(auditLog));
+
+      alert(`✅ เปลี่ยนชื่อกลุ่มเป็น "${newCellName.trim()}" สำเร็จ! ย้ายสมาชิกทั้งหมด ${memberIds.length} คนเรียบร้อยครับ`);
+      
+      await fetchMembers(planningLevel, selectedArea);
+      const { data: allUsers } = await supabase.from('members').select('*');
+      setAllUsersList(allUsers || []);
+    } catch (err) {
+      alert('❌ เปลี่ยนชื่อกลุ่มไม่สำเร็จ: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   const localAuditLog = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem('member_audit_log') || '{}');
@@ -506,7 +558,6 @@ export default function App() {
     }
   }, [members]);
 
-  // ✨ V16: อัปเกรด Dropdown แขวง, หน่วย, เซลล์ ให้กรองจากฐานข้อมูลทั้งหมด (allUsersList) เพื่อให้รองรับการย้ายกลุ่มข้ามแขวงได้
   const dynamicKwangs = useMemo(() => {
     if (!memberForm.zone) return listKwang;
     return [...new Set(allUsersList.filter(m => m.Zone?.trim() === memberForm.zone.trim()).map(m => m['แขวง']?.trim()).filter(Boolean))].sort();
@@ -952,10 +1003,10 @@ export default function App() {
             <div className="h-[450px] w-full mt-4 print:h-[250px] print:overflow-hidden print:mb-6">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="99%" height="100%">
-                  {/* ✨ V16: ปรับ margin bottom กลับเป็น 60 ให้สมดุล */}
+                  {/* ✨ V17: ปรับ margin bottom ลงเหลือ 60 เพื่อคืนที่ว่างให้แกน X บนหน้าเว็บ */}
                   <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    {/* ✨ V16: ปรับ height เหลือ 60 และเอา tickMargin ออก เพื่อป้องกันวันที่ตกขอบหน้าจอ */}
+                    {/* ✨ V17: ปรับ height เหลือ 60 และเอา tickMargin ออก เพื่อป้องกันข้อความวันที่แกน X หลุดจอ */}
                     <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={60} />
                     <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
@@ -1004,7 +1055,16 @@ export default function App() {
               <div className="overflow-auto max-h-[500px] print:max-h-none print:overflow-visible pr-2 space-y-6 print:space-y-4">
                 {sortedCells.map(cellName => (
                   <div key={cellName} className="avoid-page-break border border-gray-100 print:border-gray-400 rounded-2xl overflow-hidden shadow-sm print:shadow-none print:rounded-none">
-                    <div className="bg-slate-50 print:bg-gray-100 border-b border-gray-100 print:border-gray-400 p-3 flex justify-between items-center"><h3 className="font-black text-slate-700 text-base print:text-sm flex items-center gap-2"><span className="text-sky-500 print:hidden">❖</span> กลุ่ม: {cellName}</h3><span className="bg-white text-sky-600 text-xs font-bold px-3 py-1 rounded-full border border-sky-100 print:border-gray-300 shadow-sm print:shadow-none print:text-black">{groupedMembers[cellName].length} คน</span></div>
+                    <div className="bg-slate-50 print:bg-gray-100 border-b border-gray-100 print:border-gray-400 p-3 flex justify-between items-center">
+                      <h3 className="font-black text-slate-700 text-base print:text-sm flex items-center gap-2">
+                        <span className="text-sky-500 print:hidden">❖</span> กลุ่ม: {cellName}
+                        {/* ✨ V17: ปุ่มเปลี่ยนชื่อกลุ่มเซลล์รวดเดียว */}
+                        <button onClick={() => handleRenameCell(cellName, groupedMembers[cellName])} className="print:hidden ml-2 text-[10px] bg-white border border-gray-200 text-gray-500 hover:text-orange-600 hover:border-orange-300 px-2 py-1 rounded-lg transition shadow-sm font-bold">
+                          ✏️ เปลี่ยนชื่อทั้งกลุ่ม
+                        </button>
+                      </h3>
+                      <span className="bg-white text-sky-600 text-xs font-bold px-3 py-1 rounded-full border border-sky-100 print:border-gray-300 shadow-sm print:shadow-none print:text-black">{groupedMembers[cellName].length} คน</span>
+                    </div>
                     <div className="overflow-x-auto print:overflow-visible">
                       <table className="w-full text-left border-collapse whitespace-nowrap">
                         <thead className="bg-white text-gray-400 print:text-gray-600 text-[10px] uppercase tracking-wider border-b print:border-gray-300">
@@ -1278,7 +1338,6 @@ export default function App() {
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {/* ✨ V16: เปลี่ยนเป็น Input + Datalist เพื่อให้ดึงของเก่ามาแสดงได้แม้จะไม่ตรงเป๊ะ */}
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">สถานะ (Role) <span className="text-red-500">*</span></label>
                       <input type="text" list="role-list" required placeholder="เลือกหรือพิมพ์สถานะ" value={memberForm.role} onChange={e => setMemberForm({...memberForm, role: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition font-medium text-blue-800" />
