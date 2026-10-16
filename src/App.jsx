@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V13 (Fix Member Save Error + Audit Trail + Auto Fallback)
+// ✨ VERSION: ULTIMATE V15 (District Overview + Delete Member + Print Layout Fix)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -53,7 +53,8 @@ export default function App() {
 
   const iCls = `flex-1 border-b border-orange-300 focus:outline-none focus:border-orange-600 font-medium bg-transparent pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
   const nCls = `w-20 border-b border-orange-300 focus:outline-none focus:border-orange-600 bg-transparent text-center font-bold pb-1 transition-colors print:border-dotted print:border-gray-500 print:text-black ${isReadOnly ? 'text-gray-500 border-gray-300' : 'text-orange-600'}`;
-  const tCls = `w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-20 print:h-auto print:min-h-[60px] transition-colors print:border-gray-400 print:text-black print:rounded-none print:p-2 ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`;
+  // ✨ อัปเดต V15: แก้ไขกล่องข้อความให้ขยายตามจริงตอนปริ้น ไม่ให้แหว่ง
+  const tCls = `w-full border-2 rounded-xl p-3 mt-1 focus:outline-none focus:border-orange-500 font-medium bg-transparent resize-none h-20 print:h-auto print:min-h-[100px] print:overflow-visible transition-colors print:border-gray-400 print:text-black print:rounded-none print:p-2 ${isReadOnly ? 'border-gray-200 text-gray-600 bg-gray-50' : 'border-dotted border-orange-300 text-orange-700'}`;
 
   const b = (f) => ({ 
     value: planForm[f] || '', 
@@ -197,6 +198,20 @@ export default function App() {
     });
     return { t_mem, t_cell, t_lead, t_men };
   }, [myPlans, planningLevel]);
+
+  const zoneKwangPlanStatus = useMemo(() => {
+    if (planningLevel !== 'เขต' || !selectedArea) return [];
+    const kwangsInZone = [...new Set(members.filter(m => m.Zone?.trim() === selectedArea).map(m => m['แขวง']?.trim()).filter(Boolean))].sort();
+    return kwangsInZone.map(kwangName => {
+      const plan = myPlans.find(p => p.area?.trim() === kwangName);
+      return {
+        kwang: kwangName,
+        status: plan ? plan.status : 'not_sent',
+        reporter: plan ? plan.reporter : '-',
+        updatedAt: plan ? new Date(plan.created_at || Date.now()).toLocaleDateString('th-TH') : '-'
+      };
+    });
+  }, [planningLevel, selectedArea, members, myPlans]);
 
   const currentAreaStats = useMemo(() => {
     const targetArea = viewingPlan ? viewingPlan.area : selectedArea;
@@ -461,6 +476,26 @@ export default function App() {
       alert('บันทึกไม่สำเร็จ: ' + error.message);
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  const handleDeleteMember = async () => {
+    if (!memberForm.id) return;
+    if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบคุณ "${memberForm.firstName} ${memberForm.lastName}" ออกจากระบบ?\n(การลบจะไม่สามารถกู้คืนได้)`)) {
+      setIsSaving(true);
+      try {
+        const { error } = await supabase.from('members').delete().eq('id', memberForm.id);
+        if (error) throw error;
+        alert('🗑️ ลบสมาชิกออกจากระบบเรียบร้อยแล้วครับ');
+        await fetchMembers(planningLevel, selectedArea);
+        const { data: allUsers } = await supabase.from('members').select('*');
+        setAllUsersList(allUsers || []);
+        setIsModalOpen(false);
+      } catch (err) {
+        alert('❌ ลบสมาชิกไม่สำเร็จ: ' + err.message);
+      } finally {
+        setIsSaving(false);
+      }
     }
   }
 
@@ -731,11 +766,62 @@ export default function App() {
             </div>
           )}
 
+          {planningLevel === 'เขต' && (
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
+              <h2 className="text-xl font-black text-gray-800 flex items-center gap-3 mb-4">
+                 <span className="bg-emerald-100 text-emerald-600 p-2.5 rounded-xl">📊</span> 
+                 สรุปสถานะการส่งแผนของแต่ละแขวงใน {selectedArea}
+              </h2>
+              <div className="overflow-x-auto rounded-xl border border-gray-100">
+                <table className="w-full text-left border-collapse whitespace-nowrap">
+                   <thead className="bg-gray-50 text-gray-600 text-sm">
+                      <tr>
+                        <th className="p-4 font-bold border-b border-gray-100">ชื่อแขวง</th>
+                        <th className="p-4 font-bold border-b border-gray-100">สถานะการส่งแผน</th>
+                        <th className="p-4 font-bold border-b border-gray-100">ผู้รับผิดชอบ</th>
+                        <th className="p-4 font-bold border-b border-gray-100">วันที่ทำรายการ</th>
+                        <th className="p-4 font-bold border-b border-gray-100 text-center">จัดการ / ตรวจ</th>
+                      </tr>
+                   </thead>
+                   <tbody>
+                      {zoneKwangPlanStatus.length > 0 ? zoneKwangPlanStatus.map((item, idx) => {
+                         const matchedPlan = myPlans.find(p => p.area?.trim() === item.kwang);
+                         return (
+                           <tr key={idx} className="border-b border-gray-50 hover:bg-slate-50 transition-colors">
+                             <td className="p-4 font-black text-gray-800 text-base">{item.kwang}</td>
+                             <td className="p-4">
+                                {item.status === 'not_sent' && <span className="bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-xs font-black border border-red-100">❌ ยังไม่ส่งแผน</span>}
+                                {item.status === 'draft' && <span className="bg-gray-100 text-gray-600 px-4 py-1.5 rounded-full text-xs font-black">📝 บันทึกร่าง (ยังไม่ส่ง)</span>}
+                                {item.status === 'submitted' && <span className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-xs font-black border border-blue-200">⏳ รอเขตตรวจ</span>}
+                                {item.status === 'reviewed' && <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-black border border-green-200">✅ เขตตรวจแล้ว</span>}
+                             </td>
+                             <td className="p-4 text-sm text-gray-600">{item.reporter}</td>
+                             <td className="p-4 text-sm text-gray-600">{item.updatedAt}</td>
+                             <td className="p-4 text-center">
+                                {matchedPlan ? (
+                                   <button onClick={() => {setViewingPlan(matchedPlan); setPlanForm(matchedPlan.plan_data); setIsReadOnly(matchedPlan.status === 'submitted' || matchedPlan.status === 'reviewed'); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });}} className="text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl hover:bg-blue-100 transition shadow-sm border border-blue-200">
+                                      {matchedPlan.status === 'submitted' ? 'ตรวจ / แนะนำ 💬' : 'ดูข้อมูล 📄'}
+                                   </button>
+                                ) : (
+                                   <span className="text-gray-400 text-xs font-medium">รอดำเนินการจากแขวง</span>
+                                )}
+                             </td>
+                           </tr>
+                         );
+                      }) : (
+                         <tr><td colSpan="5" className="p-6 text-center text-gray-400 font-bold">ไม่พบรายชื่อแขวงในเขตนี้</td></tr>
+                      )}
+                   </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-black text-gray-800 flex items-center gap-3">
                  <span className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl">📋</span> 
-                 {planningLevel === 'คริสตจักร' ? 'ประวัติแผนงานทั้งหมด' : (planningLevel === 'เขต' ? 'สถานะแผนงานของแขวงในเขต' : 'ประวัติแผนงานของแขวง')}
+                 {planningLevel === 'คริสตจักร' ? 'ประวัติแผนงานทั้งหมด' : (planningLevel === 'เขต' ? 'รายการแผนงานที่ส่งเข้ามา' : 'ประวัติแผนงานของแขวง')}
               </h2>
             </div>
             <div className="overflow-x-auto rounded-xl border border-gray-100">
@@ -846,9 +932,11 @@ export default function App() {
             <div className="h-[450px] w-full mt-4 print:h-[250px] print:overflow-hidden print:mb-6">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="99%" height="100%">
-                  <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 60 }}>
+                  {/* ✨ อัปเดต V15: เพิ่ม bottom margin เป็น 80 ไม่ให้กราฟแหว่งขอบล่างตอนปริ้น */}
+                  <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} />
+                    {/* ✨ อัปเดต V15: เพิ่ม tickMargin=10 ผลักข้อความแกน X ให้พ้นกรอบ */}
+                    <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} tickMargin={10} />
                     <YAxis domain={[0, 'auto']} tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{fill: 'rgba(249, 115, 22, 0.05)'}} contentStyle={{borderRadius: '8px', border: 'none'}} />
                     <Bar dataKey="count" fill="url(#colorUv)" radius={[4, 4, 0, 0]} barSize={30} isAnimationActive={false}>
@@ -922,7 +1010,7 @@ export default function App() {
                                 <td className="p-2 text-gray-500">{m['เบอร์โทร'] || '-'}</td>
                                 <td className="p-2 text-gray-500 text-center">{m['อายุ'] ? `${m['อายุ']} ปี` : '-'}</td>
                                 <td className="p-2"><span className={`px-2 py-0.5 rounded-full text-[10px] font-black print:border print:border-gray-300 print:bg-white print:text-black ${cellLeaderRoles.includes(m['สถานะ']) ? 'bg-orange-100 text-orange-700' : mentorRoles.includes(m['สถานะ']) ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{m['สถานะ'] || 'สมาชิก'}</span></td>
-                                <td className="p-2 text-center print:hidden"><button onClick={() => handleOpenEdit(m)} className="text-sky-600 bg-sky-50 px-3 py-1 rounded-lg text-xs font-bold hover:bg-sky-100 transition">แก้ไข</button></td>
+                                <td className="p-2 text-center print:hidden"><button onClick={() => handleOpenEdit(m)} className="text-sky-600 bg-sky-50 px-3 py-1 rounded-lg text-xs font-bold hover:bg-sky-100 transition">แก้ไข/ย้าย</button></td>
                               </tr>
                             );
                           })}
@@ -1082,6 +1170,7 @@ export default function App() {
 
                 </div>
 
+                {/* ส่วนปุ่มกดและคอมเมนต์ด้านล่าง */}
                 {isReadOnly ? (
                    <div className="pt-8 print:hidden space-y-4 border-t-2 border-gray-100 mt-6">
                       {viewingPlan?.feedback && (
@@ -1108,7 +1197,11 @@ export default function App() {
 
                       <div className="flex flex-col md:flex-row gap-4 pt-4">
                          <button type="button" onClick={() => window.print()} className="w-full md:w-1/2 bg-orange-100 text-orange-700 font-bold py-4 rounded-xl hover:bg-orange-200 transition">🖨 ปริ้นแผนงานนี้ (PDF)</button>
-                         <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">📝 สร้างแผนงานฉบับใหม่</button>
+                         {planningLevel === 'แขวง' ? (
+                           <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">📝 สร้างแผนงานฉบับใหม่ / ล้างฟอร์ม</button>
+                         ) : (
+                           <button type="button" onClick={() => {setViewingPlan(null); setPlanForm(defaultPlanForm); setIsReadOnly(false);}} className="w-full md:w-1/2 bg-gray-100 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-200 transition">❌ ปิดหน้าต่างดูข้อมูล</button>
+                         )}
                       </div>
                    </div>
                 ) : (
@@ -1126,6 +1219,7 @@ export default function App() {
           </div>
         )}
 
+        {/* Modal เพิ่มสถิติ */}
         {isAttModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 border border-white">
@@ -1139,10 +1233,14 @@ export default function App() {
           </div>
         )}
 
+        {/* Modal เพิ่ม / แก้ไข / ย้าย / ลบ สมาชิก */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 md:p-10 border border-white">
-               <div className="flex justify-between items-center border-b border-gray-100 pb-5 mb-8"><h2 className="text-2xl font-black text-gray-800">{memberForm.id ? 'แก้ไขข้อมูลสมาชิก' : 'เพิ่มสมาชิกใหม่'}</h2><button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition bg-gray-50 p-2 rounded-full"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></div>
+               <div className="flex justify-between items-center border-b border-gray-100 pb-5 mb-8">
+                 <h2 className="text-2xl font-black text-gray-800">{memberForm.id ? 'แก้ไขข้อมูล / ย้ายกลุ่มสมาชิก' : 'เพิ่มสมาชิกใหม่'}</h2>
+                 <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition bg-gray-50 p-2 rounded-full"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+               </div>
               <form onSubmit={handleSaveMember} className="space-y-6">
                 <h3 className="font-bold text-lg text-gray-800 border-l-4 border-blue-500 pl-3">ข้อมูลส่วนตัว</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1153,7 +1251,7 @@ export default function App() {
                     <div><label className="block text-sm font-bold text-gray-700 mb-2">วันเกิด (Date of Birth)</label><input type="date" value={memberForm.dob} onChange={e => setMemberForm({...memberForm, dob: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition text-gray-600 font-medium" /></div>
                     <div><label className="block text-sm font-bold text-gray-700 mb-2">เบอร์โทร (Phone Number)</label><input type="text" value={memberForm.phone} onChange={e => setMemberForm({...memberForm, phone: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
                 </div>
-                <h3 className="font-bold text-lg text-gray-800 border-l-4 border-orange-500 pl-3 mt-6">สังกัดและหน้าที่</h3>
+                <h3 className="font-bold text-lg text-gray-800 border-l-4 border-orange-500 pl-3 mt-6">สังกัดและหน้าที่ (สามารถแก้ไขเพื่อย้ายกลุ่มได้)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">เขต (Zone) <span className="text-red-500">*</span></label>
@@ -1184,9 +1282,19 @@ export default function App() {
                       <datalist id="cell-list">{dynamicCells.map(c => <option key={c} value={c} />)}</datalist>
                     </div>
                 </div>
-                <div className="flex justify-end gap-4 pt-6 mt-6 border-t border-gray-100">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3.5 rounded-xl font-bold text-gray-600 bg-gray-50 hover:bg-gray-100 transition">ยกเลิก (Cancel)</button>
-                  <button type="submit" disabled={isSaving} className="px-8 py-3.5 rounded-xl font-black text-white bg-blue-600 hover:bg-blue-700 transition shadow-md disabled:opacity-70">{isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูลสมาชิก'}</button>
+                
+                <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-100">
+                  <div>
+                    {memberForm.id && (
+                      <button type="button" onClick={handleDeleteMember} className="px-5 py-3 rounded-xl font-bold text-red-600 bg-red-50 hover:bg-red-100 transition flex items-center gap-1.5 shadow-sm">
+                        🗑️ ลบสมาชิกนี้ออกจากระบบ
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-4">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3.5 rounded-xl font-bold text-gray-600 bg-gray-50 hover:bg-gray-100 transition">ยกเลิก (Cancel)</button>
+                    <button type="submit" disabled={isSaving} className="px-8 py-3.5 rounded-xl font-black text-white bg-blue-600 hover:bg-blue-700 transition shadow-md disabled:opacity-70">{isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูลสมาชิก'}</button>
+                  </div>
                 </div>
               </form>
             </div>
