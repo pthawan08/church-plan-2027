@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V18 (Fix Bulk Rename updated_by Error)
+// ✨ VERSION: ULTIMATE V19 (Bulletproof Fallback for Missing Columns)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -410,49 +410,29 @@ export default function App() {
         'แขวง': memberForm.kwang || null
       };
 
-      const titlePayload = {
-        ...basePayload,
-        'title': memberForm.title || null
-      };
-
       const fullPayload = {
-        ...titlePayload,
-        'updated_by': actorName
+        ...basePayload,
+        'title': memberForm.title || null,
+        'updated_by': actorName,
+        'created_by': actorName
       };
-      if (!memberForm.id) {
-        fullPayload.created_by = actorName;
-      }
 
       const maxId = allUsersList.reduce((max, item) => (Number(item.id) > max ? Number(item.id) : max), 0);
 
-      // ลองอัปเดตแบบส่งคอลัมน์ทั้งหมด (มี updated_by ด้วย)
       let result;
       if (memberForm.id) {
+        // ✨ V19: ลองอัปเดตแบบเต็ม ถ้าพังให้ใช้แบบพื้นฐานทันที
         result = await supabase.from('members').update(fullPayload).eq('id', memberForm.id);
-        // ถ้าเกิด error ที่เกิดจากคอลัมน์ updated_by ให้ทำการส่งใหม่แบบไม่เอา updated_by 
-        if (result.error && result.error.message?.includes('updated_by')) {
-          result = await supabase.from('members').update(titlePayload).eq('id', memberForm.id);
-        }
-        // ถ้ายัง error อีกแบบเดียวกันให้เหลือเฉพาะข้อมูลหลัก (รองรับกรณีคอลัมน์ title หาย)
-        if (result.error && result.error.message?.includes('title')) {
+        if (result.error) {
            result = await supabase.from('members').update(basePayload).eq('id', memberForm.id);
         }
       } else {
         result = await supabase.from('members').insert([fullPayload]);
-        if (result.error && (result.error.code === '23505' || result.error.message?.includes('duplicate key'))) {
-          result = await supabase.from('members').insert([{ ...fullPayload, id: maxId + 1 }]);
-        }
-        if (result.error && result.error.message?.includes('created_by')) {
-          result = await supabase.from('members').insert([titlePayload]);
-          if (result.error && (result.error.code === '23505' || result.error.message?.includes('duplicate key'))) {
-             result = await supabase.from('members').insert([{ ...titlePayload, id: maxId + 1 }]);
-          }
-        }
-        if (result.error && result.error.message?.includes('title')) {
+        if (result.error && result.error.code !== '23505') {
           result = await supabase.from('members').insert([basePayload]);
-          if (result.error && (result.error.code === '23505' || result.error.message?.includes('duplicate key'))) {
-             result = await supabase.from('members').insert([{ ...basePayload, id: maxId + 1 }]);
-          }
+        }
+        if (result.error && (result.error.code === '23505' || result.error.message?.includes('duplicate key'))) {
+          result = await supabase.from('members').insert([{ ...basePayload, id: maxId + 1 }]);
         }
       }
 
@@ -513,26 +493,20 @@ export default function App() {
       const memberIds = membersInCell.map(m => m.id);
       const actorName = userName || 'ผู้ใช้งานระบบ';
       
-      // ✨ V18 Fallback: ลองอัปเดตแบบใส่ updated_by ก่อน ถ้าหาคอลัมน์นี้ไม่เจอให้ใช้ระบบสำรอง (Fallback)
-      let { error } = await supabase
+      // ✨ V19 Fallback: ถ้าใส่ประวัติคนแก้แล้วพัง ให้ลองแบบเบสิคทันที
+      let res = await supabase
         .from('members')
-        .update({ 
-          Cell: newCellName.trim(),
-          updated_by: actorName 
-        })
+        .update({ Cell: newCellName.trim(), updated_by: actorName })
         .in('id', memberIds);
         
-      if (error && error.message?.includes('updated_by')) {
-         const fallbackResult = await supabase
+      if (res.error) {
+         res = await supabase
           .from('members')
-          .update({ 
-            Cell: newCellName.trim()
-          })
+          .update({ Cell: newCellName.trim() })
           .in('id', memberIds);
-         error = fallbackResult.error;
       }
         
-      if (error) throw error;
+      if (res.error) throw res.error;
       
       const auditLog = JSON.parse(localStorage.getItem('member_audit_log') || '{}');
       const timeNow = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
