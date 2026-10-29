@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V24 (Full Code + Change Log History + Title Fix + Large Fonts + Print Fix)
+// ✨ VERSION: ULTIMATE V25 (Fix Leader Role Filter + Full Change Log + Title Fix + Print Fix)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -71,11 +71,19 @@ export default function App() {
     readOnly: isReadOnly
   })
 
-  const cellLeaderRoles = ['หัวหน้าเซลล์', 'หนซ.', 'หนซ'];
-  const assistantRoles = ['ผู้ช่วยหัวหน้าเซลล์', 'ผช.หนซ.', 'ผช.หนซ'];
-  const mentorRoles = ['ศบ.อาวุโส', 'ศบ.', 'พี่เลี้ยง', 'พล.', 'พล', ...assistantRoles, ...cellLeaderRoles, 'หัวหน้าหน่วย', 'หนน.', 'หนน', 'หัวหน้าแขวง', 'หนข.', 'หนข', 'หัวหน้าเขต', 'หนขต.', 'หนขต'];
-  const kwangLeaderRoles = ['หัวหน้าแขวง', 'หนข.', 'หนข'];
-  const zoneLeaderRoles = ['หัวหน้าเขต', 'หนขต.', 'หนขต'];
+  // ✨ V25: รองรับทั้งชื่อสถานะแบบย่อ และแบบเต็มที่มีวงเล็บจากตัวเลือกในฟอร์ม
+  const cellLeaderRoles = ['หัวหน้าเซลล์', 'หนซ.', 'หนซ', 'หัวหน้าเซลล์ (หนซ.)'];
+  const assistantRoles = ['ผู้ช่วยหัวหน้าเซลล์', 'ผช.หนซ.', 'ผช.หนซ', 'ผู้ช่วยหัวหน้าเซลล์ (ผช.หนซ.)'];
+  const mentorRoles = [
+    'ศบ.อาวุโส', 'ศบ.', 'ศิษยาภิบาล (ศบ.)', 'ศิษยาภิบาลอาวุโส (ศบ.อาวุโส)',
+    'พี่เลี้ยง', 'พล.', 'พล', 'พี่เลี้ยง (พล.)',
+    ...assistantRoles, ...cellLeaderRoles,
+    'หัวหน้าหน่วย', 'หนน.', 'หนน', 'หัวหน้าหน่วย (หนน.)',
+    'หัวหน้าแขวง', 'หนข.', 'หนข', 'หัวหน้าแขวง (หนข.)',
+    'หัวหน้าเขต', 'หนขต.', 'หนขต', 'หัวหน้าเขต (หนขต.)'
+  ];
+  const kwangLeaderRoles = ['หัวหน้าแขวง', 'หนข.', 'หนข', 'หัวหน้าแขวง (หนข.)'];
+  const zoneLeaderRoles = ['หัวหน้าเขต', 'หนขต.', 'หนขต', 'หัวหน้าเขต (หนขต.)'];
 
   const totalAttendance = attendanceData.reduce((sum, item) => sum + item.count, 0);
   const avgAttendance = attendanceData.length > 0 ? Math.round(totalAttendance / attendanceData.length) : 0;
@@ -121,14 +129,24 @@ export default function App() {
   const currentOptions = planningLevel === 'เขต' ? listZones : listKwang;
   const adminOptions = adminAttLevel === 'เขต' ? listZones : listKwang;
   
+  // ✨ V25: กรองเฉพาะหัวหน้าแขวง / หัวหน้าเขตตัวจริงเท่านั้น (รองรับทั้ง "หนข." และ "หัวหน้าแขวง (หนข.)")
   const availableUsers = useMemo(() => {
     if (!selectedArea) return [];
     const safeSelectedArea = selectedArea.trim().toLowerCase();
     
     return allUsersList.filter(u => {
       const uArea = planningLevel === 'เขต' ? u.Zone : u['แขวง'];
-      return uArea?.trim().toLowerCase() === safeSelectedArea;
-    }).map(u => u['ชื่อ-สกุล']?.trim()).sort();
+      if (uArea?.trim().toLowerCase() !== safeSelectedArea) return false;
+      
+      const userRole = u['สถานะ']?.trim() || '';
+      if (planningLevel === 'แขวง') {
+        return kwangLeaderRoles.includes(userRole) || userRole.includes('หัวหน้าแขวง') || (userRole.includes('หนข') && !userRole.includes('หนขต'));
+      }
+      if (planningLevel === 'เขต') {
+        return zoneLeaderRoles.includes(userRole) || userRole.includes('หัวหน้าเขต') || userRole.includes('หนขต');
+      }
+      return false;
+    }).map(u => u['ชื่อ-สกุล']?.trim()).filter(Boolean).sort();
   }, [allUsersList, selectedArea, planningLevel]);
 
   useEffect(() => {
@@ -151,7 +169,6 @@ export default function App() {
     return data || [];
   }
 
-  // ✨ V24: ดึงประวัติการแก้ไขข้อมูลสมาชิกจากตาราง member_logs
   const fetchMemberLogs = async (level, area) => {
     try {
       let query = supabase.from('member_logs').select('*').order('id', { ascending: false }).limit(50);
@@ -416,7 +433,6 @@ export default function App() {
     setIsModalOpen(true)
   }
 
-  // ✨ V24: บันทึกข้อมูลสมาชิก + เทียบค่าเก่า-ใหม่ + แยก titlePayload ไม่ให้คำนำหน้าหาย
   const handleSaveMember = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -505,7 +521,6 @@ export default function App() {
 
       if (result.error) throw result.error;
 
-      // บันทึกประวัติลงตาราง member_logs (ถ้าสร้างตารางแล้ว)
       await supabase.from('member_logs').insert([{
         actor: actorName,
         area: `${memberForm.zone || '-'} / ${memberForm.kwang || '-'}`,
@@ -725,7 +740,7 @@ export default function App() {
                 <div>
                   <label className="block text-gray-700 mb-2 font-bold">ชื่อผู้ใช้งาน (ล็อกอิน)</label>
                   <select className="w-full border-2 border-orange-100 p-4 rounded-2xl focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-50 transition-all disabled:bg-gray-100 disabled:text-gray-400 text-gray-700 bg-white font-medium" value={userName} onChange={(e) => setUserName(e.target.value)} disabled={!selectedArea || isLoading}>
-                    <option value="">{!selectedArea ? `(โปรดเลือก${planningLevel}ก่อน)` : availableUsers.length > 0 ? `-- เลือกชื่อของคุณ --` : `❌ ไม่พบรายชื่อคนใน${planningLevel}นี้`}</option>
+                    <option value="">{!selectedArea ? `(โปรดเลือก${planningLevel}ก่อน)` : availableUsers.length > 0 ? `-- เลือกชื่อของคุณ --` : `❌ ไม่พบรายชื่อหัวหน้า${planningLevel}นี้`}</option>
                     {availableUsers.map(name => <option key={name} value={name}>{name}</option>)}
                   </select>
                 </div>
@@ -1188,7 +1203,6 @@ export default function App() {
             </div>
           )}
 
-          {/* ✨ V24: ตารางสรุปประวัติการแก้ไขข้อมูลสมาชิกล่าสุด (แสดงทั้งระดับคริสตจักร เขต และแขวง) */}
           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-black text-gray-800 flex items-center gap-3">
@@ -1230,7 +1244,7 @@ export default function App() {
                   )) : (
                     <tr>
                       <td colSpan="6" className="p-8 text-center text-gray-400 font-bold">
-                        ยังไม่มีประวัติการแก้ไขใหม่ (หลังจากเปิดระบบบันทึกประวัติ V24)
+                        ยังไม่มีประวัติการแก้ไขใหม่ (หลังจากเปิดระบบบันทึกประวัติ)
                       </td>
                     </tr>
                   )}
