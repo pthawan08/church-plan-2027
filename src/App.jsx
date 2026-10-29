@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V22 (Full Code + Large Fonts + Print Fix + Smart Dropdowns)
+// ✨ VERSION: ULTIMATE V24 (Full Code + Change Log History + Title Fix + Large Fonts + Print Fix)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -23,6 +23,7 @@ export default function App() {
   const [listZones, setListZones] = useState([])
   const [listKwang, setListKwang] = useState([])
   const [members, setMembers] = useState([])
+  const [memberLogs, setMemberLogs] = useState([])
   
   const [attendanceData, setAttendanceData] = useState([])
   const [isAttModalOpen, setIsAttModalOpen] = useState(false)
@@ -98,39 +99,44 @@ export default function App() {
 
   useEffect(() => {
     async function fetchData() {
+      setIsLoading(true);
       try {
-        const { data, error } = await supabase.from('members').select('*')
-        if (error) throw error
-        setAllUsersList(data || [])
-        const uniqueZones = [...new Set(data.map(item => item.Zone?.trim()).filter(z => z))]
-        const uniqueKwang = [...new Set(data.map(item => item['แขวง']?.trim()).filter(k => k))]
-        setListZones(uniqueZones.sort())
-        setListKwang(uniqueKwang.sort())
-      } catch (error) { console.error('Error fetching data:', error) } finally { setIsLoading(false) }
+        const { data, error } = await supabase.from('members').select('*');
+        if (error) throw error;
+        setAllUsersList(data || []);
+        
+        const uniqueZones = [...new Set(data.map(item => item.Zone?.trim()).filter(z => z))];
+        const uniqueKwang = [...new Set(data.map(item => item['แขวง']?.trim()).filter(k => k))];
+        setListZones(uniqueZones.sort());
+        setListKwang(uniqueKwang.sort());
+      } catch (error) { 
+        console.error('Error fetching data:', error);
+      } finally { 
+        setIsLoading(false);
+      }
     }
-    fetchData()
-  }, [])
+    fetchData();
+  }, [currentView]);
 
-  const currentOptions = planningLevel === 'เขต' ? listZones : listKwang
-  const adminOptions = adminAttLevel === 'เขต' ? listZones : listKwang
+  const currentOptions = planningLevel === 'เขต' ? listZones : listKwang;
+  const adminOptions = adminAttLevel === 'เขต' ? listZones : listKwang;
   
   const availableUsers = useMemo(() => {
     if (!selectedArea) return [];
     const safeSelectedArea = selectedArea.trim().toLowerCase();
+    
     return allUsersList.filter(u => {
       const uArea = planningLevel === 'เขต' ? u.Zone : u['แขวง'];
-      if (uArea?.trim().toLowerCase() !== safeSelectedArea) return false;
-      const userRole = u['สถานะ']?.trim();
-      if (planningLevel === 'แขวง') return kwangLeaderRoles.includes(userRole);
-      if (planningLevel === 'เขต') return zoneLeaderRoles.includes(userRole);
-      return false;
+      return uArea?.trim().toLowerCase() === safeSelectedArea;
     }).map(u => u['ชื่อ-สกุล']?.trim()).sort();
   }, [allUsersList, selectedArea, planningLevel]);
 
   useEffect(() => {
     if (selectedArea && availableUsers.length > 0) {
       if (!availableUsers.includes(userName)) setUserName(availableUsers[0]);
-    } else { setUserName(''); }
+    } else { 
+      setUserName(''); 
+    }
   }, [availableUsers, selectedArea]);
 
   const fetchMembers = async (level, area) => {
@@ -143,6 +149,22 @@ export default function App() {
     if (error) throw error; 
     setMembers(data || []);
     return data || [];
+  }
+
+  // ✨ V24: ดึงประวัติการแก้ไขข้อมูลสมาชิกจากตาราง member_logs
+  const fetchMemberLogs = async (level, area) => {
+    try {
+      let query = supabase.from('member_logs').select('*').order('id', { ascending: false }).limit(50);
+      if (level !== 'คริสตจักร' && area) {
+        query = query.ilike('area', `%${area}%`);
+      }
+      const { data, error } = await query;
+      if (!error && data) {
+        setMemberLogs(data);
+      }
+    } catch (err) {
+      console.error('Error fetching member logs:', err);
+    }
   }
 
   const fetchAttendance = async (level, area) => {
@@ -201,6 +223,7 @@ export default function App() {
   const zoneKwangPlanStatus = useMemo(() => {
     if (planningLevel !== 'เขต' || !selectedArea) return [];
     const kwangsInZone = [...new Set(members.filter(m => m.Zone?.trim() === selectedArea).map(m => m['แขวง']?.trim()).filter(Boolean))].sort();
+    
     return kwangsInZone.map(kwangName => {
       const plan = myPlans.find(p => p.area?.trim() === kwangName);
       return {
@@ -247,11 +270,13 @@ export default function App() {
         const mData = await fetchMembers('คริสตจักร', ''); 
         await fetchAttendance('คริสตจักร', ''); 
         await fetchPlans('คริสตจักร', '', mData);
+        await fetchMemberLogs('คริสตจักร', '');
         setCurrentView('dashboard')
       } else if (userName && selectedArea) {
         const mData = await fetchMembers(planningLevel, selectedArea); 
         await fetchAttendance(planningLevel, selectedArea); 
         await fetchPlans(planningLevel, selectedArea, mData);
+        await fetchMemberLogs(planningLevel, selectedArea);
         setCurrentView('dashboard')
       } else { alert(`กรุณาเลือก${planningLevel}และชื่อผู้กรอก`) }
     } catch (error) { alert('เกิดข้อผิดพลาดในการดึงข้อมูล') } finally { setIsLoading(false) }
@@ -391,12 +416,40 @@ export default function App() {
     setIsModalOpen(true)
   }
 
+  // ✨ V24: บันทึกข้อมูลสมาชิก + เทียบค่าเก่า-ใหม่ + แยก titlePayload ไม่ให้คำนำหน้าหาย
   const handleSaveMember = async (e) => {
     e.preventDefault();
     setIsSaving(true);
     try {
       const combinedName = `${memberForm.firstName} ${memberForm.lastName}`.trim();
-      const actorName = userName || 'ผู้ใช้งานระบบ';
+      const actorName = userName || 'แอดมิน / ผู้ใช้งานระบบ';
+      const nowISO = new Date().toISOString();
+
+      let changeList = [];
+      if (memberForm.id) {
+        const oldMember = members.find(m => m.id === memberForm.id) || allUsersList.find(m => m.id === memberForm.id);
+        if (oldMember) {
+          const checkDiff = (label, oldVal, newVal) => {
+            const o = (oldVal || '').toString().trim();
+            const n = (newVal || '').toString().trim();
+            if (o !== n) changeList.push(`${label}: ${o || '-'} ➔ ${n || '-'}`);
+          };
+          checkDiff('คำนำหน้า', oldMember.title, memberForm.title);
+          checkDiff('ชื่อ-สกุล', oldMember['ชื่อ-สกุล'], combinedName);
+          checkDiff('ชื่อเล่น', oldMember['ชื่อเล่น'], memberForm.nickName);
+          checkDiff('วันเกิด', oldMember['วันเกิด'], memberForm.dob);
+          checkDiff('เบอร์โทร', oldMember['เบอร์โทร'], memberForm.phone);
+          checkDiff('สถานะ', oldMember['สถานะ'], memberForm.role);
+          checkDiff('เขต', oldMember.Zone, memberForm.zone);
+          checkDiff('แขวง', oldMember['แขวง'], memberForm.kwang);
+          checkDiff('หน่วย', oldMember['หน่วย'], memberForm.unit);
+          checkDiff('เซลล์', oldMember.Cell, memberForm.cell);
+        }
+      } else {
+        changeList.push(`เพิ่มสมาชิกใหม่เข้ากลุ่ม ${memberForm.cell || '-'}`);
+      }
+
+      const changeSummary = changeList.length > 0 ? changeList.join(', ') : 'กดบันทึกโดยไม่เปลี่ยนค่า';
 
       const basePayload = {
         'ชื่อ-สกุล': combinedName,
@@ -410,11 +463,17 @@ export default function App() {
         'แขวง': memberForm.kwang || null
       };
 
-      const fullPayload = {
+      const titlePayload = {
         ...basePayload,
-        'title': memberForm.title || null,
+        'title': memberForm.title || null
+      };
+
+      const fullPayload = {
+        ...titlePayload,
         'updated_by': actorName,
-        'created_by': actorName
+        'updated_at': nowISO,
+        'change_detail': changeSummary,
+        ...(memberForm.id ? {} : { 'created_by': actorName })
       };
 
       const maxId = allUsersList.reduce((max, item) => (Number(item.id) > max ? Number(item.id) : max), 0);
@@ -423,12 +482,21 @@ export default function App() {
       if (memberForm.id) {
         result = await supabase.from('members').update(fullPayload).eq('id', memberForm.id);
         if (result.error) {
-           result = await supabase.from('members').update(basePayload).eq('id', memberForm.id);
+          result = await supabase.from('members').update(titlePayload).eq('id', memberForm.id);
+        }
+        if (result.error) {
+          result = await supabase.from('members').update(basePayload).eq('id', memberForm.id);
         }
       } else {
         result = await supabase.from('members').insert([fullPayload]);
         if (result.error && result.error.code !== '23505') {
+          result = await supabase.from('members').insert([titlePayload]);
+        }
+        if (result.error && result.error.code !== '23505') {
           result = await supabase.from('members').insert([basePayload]);
+        }
+        if (result.error && (result.error.code === '23505' || result.error.message?.includes('duplicate key'))) {
+          result = await supabase.from('members').insert([{ ...titlePayload, id: maxId + 1 }]);
         }
         if (result.error && (result.error.code === '23505' || result.error.message?.includes('duplicate key'))) {
           result = await supabase.from('members').insert([{ ...basePayload, id: maxId + 1 }]);
@@ -437,19 +505,30 @@ export default function App() {
 
       if (result.error) throw result.error;
 
+      // บันทึกประวัติลงตาราง member_logs (ถ้าสร้างตารางแล้ว)
+      await supabase.from('member_logs').insert([{
+        actor: actorName,
+        area: `${memberForm.zone || '-'} / ${memberForm.kwang || '-'}`,
+        action: memberForm.id ? 'แก้ไข/ย้าย' : 'เพิ่มสมาชิกใหม่',
+        member_name: combinedName,
+        details: changeSummary
+      }]);
+
       const auditLog = JSON.parse(localStorage.getItem('member_audit_log') || '{}');
       auditLog[combinedName] = {
         action: memberForm.id ? 'แก้ไขล่าสุดโดย' : 'เพิ่มโดย',
         by: actorName,
+        details: changeSummary,
         at: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
       };
       localStorage.setItem('member_audit_log', JSON.stringify(auditLog));
 
       await fetchMembers(planningLevel, selectedArea);
+      await fetchMemberLogs(planningLevel, selectedArea);
       const { data: allUsers } = await supabase.from('members').select('*');
       setAllUsersList(allUsers || []);
       setIsModalOpen(false);
-      alert('✅ บันทึกข้อมูลสมาชิกเรียบร้อยแล้วครับ!');
+      alert(`✅ บันทึกข้อมูลสมาชิกเรียบร้อยแล้วครับ!\n(${changeSummary})`);
     } catch (error) {
       alert('บันทึกไม่สำเร็จ: ' + error.message);
     } finally {
@@ -459,13 +538,25 @@ export default function App() {
 
   const handleDeleteMember = async () => {
     if (!memberForm.id) return;
-    if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบคุณ "${memberForm.firstName} ${memberForm.lastName}" ออกจากระบบ?\n(การลบจะไม่สามารถกู้คืนได้)`)) {
+    const combinedName = `${memberForm.firstName} ${memberForm.lastName}`.trim();
+    if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบคุณ "${combinedName}" ออกจากระบบ?\n(การลบจะไม่สามารถกู้คืนได้)`)) {
       setIsSaving(true);
       try {
+        const actorName = userName || 'แอดมิน / ผู้ใช้งานระบบ';
         const { error } = await supabase.from('members').delete().eq('id', memberForm.id);
         if (error) throw error;
+
+        await supabase.from('member_logs').insert([{
+          actor: actorName,
+          area: `${memberForm.zone || '-'} / ${memberForm.kwang || '-'}`,
+          action: 'ลบสมาชิก',
+          member_name: combinedName,
+          details: `ลบออกจากกลุ่ม ${memberForm.cell || '-'}`
+        }]);
+
         alert('🗑️ ลบสมาชิกออกจากระบบเรียบร้อยแล้วครับ');
         await fetchMembers(planningLevel, selectedArea);
+        await fetchMemberLogs(planningLevel, selectedArea);
         const { data: allUsers } = await supabase.from('members').select('*');
         setAllUsersList(allUsers || []);
         setIsModalOpen(false);
@@ -490,11 +581,12 @@ export default function App() {
     setIsSaving(true);
     try {
       const memberIds = membersInCell.map(m => m.id);
-      const actorName = userName || 'ผู้ใช้งานระบบ';
+      const actorName = userName || 'แอดมิน / ผู้ใช้งานระบบ';
+      const detailMsg = `เปลี่ยนชื่อกลุ่ม: ${oldCellName} ➔ ${newCellName.trim()}`;
       
       let res = await supabase
         .from('members')
-        .update({ Cell: newCellName.trim(), updated_by: actorName })
+        .update({ Cell: newCellName.trim(), updated_by: actorName, change_detail: detailMsg })
         .in('id', memberIds);
         
       if (res.error) {
@@ -505,6 +597,14 @@ export default function App() {
       }
         
       if (res.error) throw res.error;
+
+      await supabase.from('member_logs').insert([{
+        actor: actorName,
+        area: selectedArea || 'คริสตจักร',
+        action: 'เปลี่ยนชื่อกลุ่มเซลล์',
+        member_name: `ทั้งกลุ่ม (${memberIds.length} คน)`,
+        details: detailMsg
+      }]);
       
       const auditLog = JSON.parse(localStorage.getItem('member_audit_log') || '{}');
       const timeNow = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -513,6 +613,7 @@ export default function App() {
         auditLog[fullNameKey] = {
           action: 'เปลี่ยนชื่อกลุ่มรวดเดียวโดย',
           by: actorName,
+          details: detailMsg,
           at: timeNow
         };
       });
@@ -521,6 +622,7 @@ export default function App() {
       alert(`✅ เปลี่ยนชื่อกลุ่มเป็น "${newCellName.trim()}" สำเร็จ! ย้ายสมาชิกทั้งหมด ${memberIds.length} คนเรียบร้อยครับ`);
       
       await fetchMembers(planningLevel, selectedArea);
+      await fetchMemberLogs(planningLevel, selectedArea);
       const { data: allUsers } = await supabase.from('members').select('*');
       setAllUsersList(allUsers || []);
     } catch (err) {
@@ -623,7 +725,7 @@ export default function App() {
                 <div>
                   <label className="block text-gray-700 mb-2 font-bold">ชื่อผู้ใช้งาน (ล็อกอิน)</label>
                   <select className="w-full border-2 border-orange-100 p-4 rounded-2xl focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-50 transition-all disabled:bg-gray-100 disabled:text-gray-400 text-gray-700 bg-white font-medium" value={userName} onChange={(e) => setUserName(e.target.value)} disabled={!selectedArea || isLoading}>
-                    <option value="">{!selectedArea ? `(โปรดเลือก${planningLevel}ก่อน)` : availableUsers.length > 0 ? `-- เลือกชื่อของคุณ --` : `❌ ไม่พบรายชื่อหัวหน้า${planningLevel}นี้`}</option>
+                    <option value="">{!selectedArea ? `(โปรดเลือก${planningLevel}ก่อน)` : availableUsers.length > 0 ? `-- เลือกชื่อของคุณ --` : `❌ ไม่พบรายชื่อคนใน${planningLevel}นี้`}</option>
                     {availableUsers.map(name => <option key={name} value={name}>{name}</option>)}
                   </select>
                 </div>
@@ -980,11 +1082,9 @@ export default function App() {
               </div>
             </div>
             
-            {/* ✨ V20: แก้ไขกรอบให้สูงขึ้นตอนปริ้น (h-[350px]) และไม่ปิดบังข้อความที่ล้น (overflow-visible) */}
             <div className="h-[450px] w-full mt-4 print:h-[350px] print:overflow-visible print:mb-10">
               {attendanceData.length > 0 ? (
                 <ResponsiveContainer width="99%" height="100%">
-                  {/* ✨ V20: ดันกราฟขึ้นและเว้นที่ให้แกน X เพื่อไม่ให้แหว่ง (bottom: 80, height: 80) */}
                   <BarChart data={attendanceData} margin={{ top: 20, right: 20, left: -20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="date" tick={{fill: '#ea580c', fontSize: 10, fontWeight: 'bold'}} angle={-45} textAnchor="end" axisLine={false} tickLine={false} height={80} tickMargin={5} />
@@ -1054,6 +1154,7 @@ export default function App() {
                             const fullNameKey = m['ชื่อ-สกุล']?.trim();
                             const auditInfo = localAuditLog[fullNameKey];
                             const dbEditor = m.updated_by || m.created_by;
+                            const dbDetail = m.change_detail || auditInfo?.details;
                             return (
                               <tr key={m.id || i} className="border-b border-gray-50 print:border-gray-200 hover:bg-slate-50 transition-colors">
                                 <td className="p-2 font-bold text-gray-700">
@@ -1061,8 +1162,13 @@ export default function App() {
                                     {m.title ? `${m.title} ` : ''}{m['ชื่อ-สกุล']} {m['ชื่อเล่น'] ? <span className="text-gray-400 font-medium ml-1">({m['ชื่อเล่น']})</span> : ''}
                                   </div>
                                   {(dbEditor || auditInfo) && (
-                                    <div className="text-[10px] text-emerald-600 font-medium print:hidden">
+                                    <div className="text-[11px] text-emerald-600 font-medium print:hidden mt-0.5">
                                       ✓ {dbEditor ? `อัปเดตโดย: ${dbEditor}` : `${auditInfo.action}: ${auditInfo.by} (${auditInfo.at})`}
+                                      {dbDetail && (
+                                        <span className="text-orange-600 font-bold ml-1.5">
+                                          [{dbDetail}]
+                                        </span>
+                                      )}
                                     </div>
                                   )}
                                 </td>
@@ -1081,9 +1187,59 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* ✨ V24: ตารางสรุปประวัติการแก้ไขข้อมูลสมาชิกล่าสุด (แสดงทั้งระดับคริสตจักร เขต และแขวง) */}
+          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-white mt-6 print:hidden">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-black text-gray-800 flex items-center gap-3">
+                <span className="bg-amber-100 text-amber-600 p-2.5 rounded-xl">🕒</span>
+                ประวัติการแก้ไขข้อมูลสมาชิกล่าสุด {planningLevel !== 'คริสตจักร' ? `(${selectedArea})` : '(ทั้งคริสตจักร)'}
+              </h2>
+              <button onClick={() => fetchMemberLogs(planningLevel, selectedArea)} className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-xl transition">
+                🔄 รีเฟรชประวัติ
+              </button>
+            </div>
+            <div className="overflow-x-auto max-h-[350px] rounded-xl border border-gray-100">
+              <table className="w-full text-left border-collapse whitespace-nowrap text-sm">
+                <thead className="bg-gray-50 text-gray-600 sticky top-0">
+                  <tr>
+                    <th className="p-3 font-bold border-b border-gray-100">วัน-เวลา</th>
+                    <th className="p-3 font-bold border-b border-gray-100">ผู้ทำรายการ</th>
+                    <th className="p-3 font-bold border-b border-gray-100">เขต / แขวง</th>
+                    <th className="p-3 font-bold border-b border-gray-100">การกระทำ</th>
+                    <th className="p-3 font-bold border-b border-gray-100">ชื่อสมาชิก</th>
+                    <th className="p-3 font-bold border-b border-gray-100">รายละเอียดที่แก้ไข</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {memberLogs.length > 0 ? memberLogs.map(log => (
+                    <tr key={log.id} className="border-b border-gray-50 hover:bg-orange-50/30 transition-colors">
+                      <td className="p-3 text-gray-500 text-xs">
+                        {new Date(log.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="p-3 font-bold text-gray-700">{log.actor}</td>
+                      <td className="p-3 text-gray-600 text-xs font-semibold">{log.area}</td>
+                      <td className="p-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-black ${log.action === 'ลบสมาชิก' ? 'bg-red-50 text-red-600' : log.action === 'เพิ่มสมาชิกใหม่' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="p-3 font-bold text-gray-800">{log.member_name}</td>
+                      <td className="p-3 text-orange-600 font-medium">{log.details}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="6" className="p-8 text-center text-gray-400 font-bold">
+                        ยังไม่มีประวัติการแก้ไขใหม่ (หลังจากเปิดระบบบันทึกประวัติ V24)
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
-        {/* ✨ V21: ขยายตัวอักษรในฟอร์ม 6 มิติให้ใหญ่ขึ้น (text-lg / text-xl / text-2xl) */}
         {(planningLevel === 'แขวง' || viewingPlan) && (
           <div className="max-w-5xl mx-auto mt-12 print:mt-8 print:max-w-full print:w-full print:px-0 force-new-page">
             <div className="bg-white p-8 md:p-14 shadow-sm rounded-3xl border border-gray-100 print:shadow-none print:border-none print:p-0">
@@ -1274,7 +1430,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ✨ Modal เพิ่มสถิติ (คืนชีพกลับมาแล้ว!) */}
+        {/* Modal เพิ่มสถิติ */}
         {isAttModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 border border-white">
@@ -1288,7 +1444,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ✨ Modal เพิ่ม / แก้ไข / ย้าย / ลบ สมาชิก (คืนชีพกลับมาแล้ว!) */}
+        {/* Modal เพิ่ม / แก้ไข / ย้าย / ลบ สมาชิก */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 md:p-10 border border-white">
