@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V25 (Fix Leader Role Filter + Full Change Log + Title Fix + Print Fix)
+// ✨ VERSION: ULTIMATE V26 (Auto Calculate & Update Age + Fix Negative BE Year + Leader Filter + Change Log)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -11,6 +11,47 @@ const defaultPlanForm = {
   d3_1:'', d3_1_1:'', d3_1_2:'', d3_1_3:'', d3_2:'', d3_2_1:'', d3_2_2:'', d3_2_3:'',
   d4_1:'', d4_1_1:'', d4_1_2:'', d4_1_3:'', d4_2:'', d4_2_1:'', d4_2_2:'', d4_2_3:'',
   d5_1:'', d6_1:'', d6_2:''
+};
+
+// ✨ V26: ฟังก์ชันแปลงวันเกิดทุกรูปแบบให้เป็น YYYY-MM-DD (ค.ศ.) สำหรับช่อง Input Date
+const normalizeDobToISO = (dobStr) => {
+  if (!dobStr) return '';
+  const str = String(dobStr).trim();
+  // กรณีเป็น YYYY-MM-DD อยู่แล้ว
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    let year = parseInt(isoMatch[1], 10);
+    if (year > 2400) year -= 543;
+    return `${year}-${isoMatch[2]}-${isoMatch[3]}`;
+  }
+  // กรณีเป็นข้อความวันที่ยาว เช่น "Sat Oct 27 2550 00:00:00 GMT+0700..."
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    let year = parsed.getFullYear();
+    if (year > 2400) year -= 543;
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return '';
+};
+
+// ✨ V26: ฟังก์ชันคำนวณอายุอัตโนมัติจากวันเกิด (รองรับทั้ง ค.ศ. และ พ.ศ. และแก้ค่าติดลบ)
+const calculateMemberAge = (dobStr, fallbackAge) => {
+  if (dobStr) {
+    const iso = normalizeDobToISO(dobStr);
+    if (iso) {
+      const birthYear = parseInt(iso.substring(0, 4), 10);
+      const currentYear = new Date().getFullYear();
+      const age = currentYear - birthYear;
+      if (age >= 0 && age <= 120) return age;
+    }
+  }
+  const numAge = Number(fallbackAge);
+  if (!isNaN(numAge) && numAge > 0 && numAge <= 120) {
+    return numAge;
+  }
+  return null;
 };
 
 export default function App() {
@@ -71,7 +112,6 @@ export default function App() {
     readOnly: isReadOnly
   })
 
-  // ✨ V25: รองรับทั้งชื่อสถานะแบบย่อ และแบบเต็มที่มีวงเล็บจากตัวเลือกในฟอร์ม
   const cellLeaderRoles = ['หัวหน้าเซลล์', 'หนซ.', 'หนซ', 'หัวหน้าเซลล์ (หนซ.)'];
   const assistantRoles = ['ผู้ช่วยหัวหน้าเซลล์', 'ผช.หนซ.', 'ผช.หนซ', 'ผู้ช่วยหัวหน้าเซลล์ (ผช.หนซ.)'];
   const mentorRoles = [
@@ -129,7 +169,6 @@ export default function App() {
   const currentOptions = planningLevel === 'เขต' ? listZones : listKwang;
   const adminOptions = adminAttLevel === 'เขต' ? listZones : listKwang;
   
-  // ✨ V25: กรองเฉพาะหัวหน้าแขวง / หัวหน้าเขตตัวจริงเท่านั้น (รองรับทั้ง "หนข." และ "หัวหน้าแขวง (หนข.)")
   const availableUsers = useMemo(() => {
     if (!selectedArea) return [];
     const safeSelectedArea = selectedArea.trim().toLowerCase();
@@ -407,6 +446,7 @@ export default function App() {
     setIsModalOpen(true)
   }
 
+  // ✨ V26: แปลงวันเกิดให้อยู่ในรูปแบบ YYYY-MM-DD (ค.ศ.) ทันทีที่เปิดหน้าต่างแก้ไข
   const handleOpenEdit = (member) => {
     const fullName = member['ชื่อ-สกุล'] || '';
     const nameParts = fullName.trim().split(/\s+/);
@@ -414,6 +454,7 @@ export default function App() {
     if (nameParts.length > 1) { t_last = nameParts.pop(); t_first = nameParts.join(' '); }
     
     const savedTitle = member['title'] || '';
+    const cleanDob = normalizeDobToISO(member['วันเกิด']);
 
     setMemberForm({ 
       id: member.id, 
@@ -421,7 +462,7 @@ export default function App() {
       firstName: t_first, 
       lastName: t_last, 
       nickName: member['ชื่อเล่น'] || '', 
-      dob: member['วันเกิด'] || '', 
+      dob: cleanDob, 
       phone: member['เบอร์โทร'] || '', 
       email: member['อีเมล'] || '', 
       role: member['สถานะ'] || '', 
@@ -433,6 +474,7 @@ export default function App() {
     setIsModalOpen(true)
   }
 
+  // ✨ V26: คำนวณอายุใหม่จากวันเกิดและอัปเดตลงคอลัมน์ 'อายุ' ในฐานข้อมูลทันที
   const handleSaveMember = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -441,36 +483,41 @@ export default function App() {
       const actorName = userName || 'แอดมิน / ผู้ใช้งานระบบ';
       const nowISO = new Date().toISOString();
 
+      const normalizedDob = normalizeDobToISO(memberForm.dob) || memberForm.dob || null;
+      const oldMember = memberForm.id ? (members.find(m => m.id === memberForm.id) || allUsersList.find(m => m.id === memberForm.id)) : null;
+      const calculatedAge = calculateMemberAge(normalizedDob, oldMember ? oldMember['อายุ'] : null);
+
       let changeList = [];
-      if (memberForm.id) {
-        const oldMember = members.find(m => m.id === memberForm.id) || allUsersList.find(m => m.id === memberForm.id);
-        if (oldMember) {
-          const checkDiff = (label, oldVal, newVal) => {
-            const o = (oldVal || '').toString().trim();
-            const n = (newVal || '').toString().trim();
-            if (o !== n) changeList.push(`${label}: ${o || '-'} ➔ ${n || '-'}`);
-          };
-          checkDiff('คำนำหน้า', oldMember.title, memberForm.title);
-          checkDiff('ชื่อ-สกุล', oldMember['ชื่อ-สกุล'], combinedName);
-          checkDiff('ชื่อเล่น', oldMember['ชื่อเล่น'], memberForm.nickName);
-          checkDiff('วันเกิด', oldMember['วันเกิด'], memberForm.dob);
-          checkDiff('เบอร์โทร', oldMember['เบอร์โทร'], memberForm.phone);
-          checkDiff('สถานะ', oldMember['สถานะ'], memberForm.role);
-          checkDiff('เขต', oldMember.Zone, memberForm.zone);
-          checkDiff('แขวง', oldMember['แขวง'], memberForm.kwang);
-          checkDiff('หน่วย', oldMember['หน่วย'], memberForm.unit);
-          checkDiff('เซลล์', oldMember.Cell, memberForm.cell);
+      if (memberForm.id && oldMember) {
+        const checkDiff = (label, oldVal, newVal) => {
+          const o = (oldVal || '').toString().trim();
+          const n = (newVal || '').toString().trim();
+          if (o !== n) changeList.push(`${label}: ${o || '-'} ➔ ${n || '-'}`);
+        };
+        checkDiff('คำนำหน้า', oldMember.title, memberForm.title);
+        checkDiff('ชื่อ-สกุล', oldMember['ชื่อ-สกุล'], combinedName);
+        checkDiff('ชื่อเล่น', oldMember['ชื่อเล่น'], memberForm.nickName);
+        checkDiff('วันเกิด', normalizeDobToISO(oldMember['วันเกิด']) || oldMember['วันเกิด'], normalizedDob);
+        if (calculatedAge !== null && String(oldMember['อายุ'] || '') !== String(calculatedAge)) {
+          changeList.push(`อายุ: ${oldMember['อายุ'] || '-'} ➔ ${calculatedAge} ปี`);
         }
-      } else {
+        checkDiff('เบอร์โทร', oldMember['เบอร์โทร'], memberForm.phone);
+        checkDiff('สถานะ', oldMember['สถานะ'], memberForm.role);
+        checkDiff('เขต', oldMember.Zone, memberForm.zone);
+        checkDiff('แขวง', oldMember['แขวง'], memberForm.kwang);
+        checkDiff('หน่วย', oldMember['หน่วย'], memberForm.unit);
+        checkDiff('เซลล์', oldMember.Cell, memberForm.cell);
+      } else if (!memberForm.id) {
         changeList.push(`เพิ่มสมาชิกใหม่เข้ากลุ่ม ${memberForm.cell || '-'}`);
       }
 
-      const changeSummary = changeList.length > 0 ? changeList.join(', ') : 'กดบันทึกโดยไม่เปลี่ยนค่า';
+      const changeSummary = changeList.length > 0 ? changeList.join(', ') : 'อัปเดตข้อมูลสมาชิก';
 
       const basePayload = {
         'ชื่อ-สกุล': combinedName,
         'ชื่อเล่น': memberForm.nickName || null,
-        'วันเกิด': memberForm.dob || null,
+        'วันเกิด': normalizedDob,
+        'อายุ': calculatedAge,
         'เบอร์โทร': memberForm.phone || null,
         'สถานะ': memberForm.role || null,
         'หน่วย': memberForm.unit || null,
@@ -1170,6 +1217,7 @@ export default function App() {
                             const auditInfo = localAuditLog[fullNameKey];
                             const dbEditor = m.updated_by || m.created_by;
                             const dbDetail = m.change_detail || auditInfo?.details;
+                            const displayAge = calculateMemberAge(m['วันเกิด'], m['อายุ']);
                             return (
                               <tr key={m.id || i} className="border-b border-gray-50 print:border-gray-200 hover:bg-slate-50 transition-colors">
                                 <td className="p-2 font-bold text-gray-700">
@@ -1188,7 +1236,7 @@ export default function App() {
                                   )}
                                 </td>
                                 <td className="p-2 text-gray-500">{m['เบอร์โทร'] || '-'}</td>
-                                <td className="p-2 text-gray-500 text-center">{m['อายุ'] ? `${m['อายุ']} ปี` : '-'}</td>
+                                <td className="p-2 text-gray-500 text-center">{displayAge !== null ? `${displayAge} ปี` : '-'}</td>
                                 <td className="p-2"><span className={`px-2 py-0.5 rounded-full text-[10px] font-black print:border print:border-gray-300 print:bg-white print:text-black ${cellLeaderRoles.includes(m['สถานะ']) ? 'bg-orange-100 text-orange-700' : mentorRoles.includes(m['สถานะ']) ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{m['สถานะ'] || 'สมาชิก'}</span></td>
                                 <td className="p-2 text-center print:hidden"><button onClick={() => handleOpenEdit(m)} className="text-sky-600 bg-sky-50 px-3 py-1 rounded-lg text-xs font-bold hover:bg-sky-100 transition">แก้ไข/ย้าย</button></td>
                               </tr>
@@ -1473,7 +1521,17 @@ export default function App() {
                     <div><label className="block text-sm font-bold text-gray-700 mb-2">ชื่อ (First Name) <span className="text-red-500">*</span></label><input type="text" required value={memberForm.firstName} onChange={e => setMemberForm({...memberForm, firstName: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
                     <div><label className="block text-sm font-bold text-gray-700 mb-2">นามสกุล (Last Name) <span className="text-red-500">*</span></label><input type="text" required value={memberForm.lastName} onChange={e => setMemberForm({...memberForm, lastName: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
                     <div><label className="block text-sm font-bold text-gray-700 mb-2">ชื่อเล่น (Nick Name)</label><input type="text" value={memberForm.nickName} onChange={e => setMemberForm({...memberForm, nickName: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
-                    <div><label className="block text-sm font-bold text-gray-700 mb-2">วันเกิด (Date of Birth)</label><input type="date" value={memberForm.dob} onChange={e => setMemberForm({...memberForm, dob: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition text-gray-600 font-medium" /></div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        วันเกิด (Date of Birth)
+                        {memberForm.dob && calculateMemberAge(memberForm.dob) !== null && (
+                          <span className="ml-2 text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">
+                            อายุ: {calculateMemberAge(memberForm.dob)} ปี
+                          </span>
+                        )}
+                      </label>
+                      <input type="date" value={memberForm.dob} onChange={e => setMemberForm({...memberForm, dob: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition text-gray-600 font-medium" />
+                    </div>
                     <div><label className="block text-sm font-bold text-gray-700 mb-2">เบอร์โทร (Phone Number)</label><input type="text" value={memberForm.phone} onChange={e => setMemberForm({...memberForm, phone: e.target.value})} className="w-full border-2 border-gray-100 p-3.5 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition" /></div>
                 </div>
                 <h3 className="font-bold text-lg text-gray-800 border-l-4 border-orange-500 pl-3 mt-6">สังกัดและหน้าที่ (สามารถแก้ไขเพื่อย้ายกลุ่มได้)</h3>
