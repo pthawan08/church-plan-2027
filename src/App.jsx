@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V26 (Auto Calculate & Update Age + Fix Negative BE Year + Leader Filter + Change Log)
+// ✨ VERSION: ULTIMATE V27 (Show Cells in Church View + Smart Unit Count + Unit/Cell Inspector Modal)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -13,18 +13,16 @@ const defaultPlanForm = {
   d5_1:'', d6_1:'', d6_2:''
 };
 
-// ✨ V26: ฟังก์ชันแปลงวันเกิดทุกรูปแบบให้เป็น YYYY-MM-DD (ค.ศ.) สำหรับช่อง Input Date
+// แปลงวันเกิดทุกรูปแบบให้เป็น YYYY-MM-DD (ค.ศ.)
 const normalizeDobToISO = (dobStr) => {
   if (!dobStr) return '';
   const str = String(dobStr).trim();
-  // กรณีเป็น YYYY-MM-DD อยู่แล้ว
   const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) {
     let year = parseInt(isoMatch[1], 10);
     if (year > 2400) year -= 543;
     return `${year}-${isoMatch[2]}-${isoMatch[3]}`;
   }
-  // กรณีเป็นข้อความวันที่ยาว เช่น "Sat Oct 27 2550 00:00:00 GMT+0700..."
   const parsed = new Date(str);
   if (!isNaN(parsed.getTime())) {
     let year = parsed.getFullYear();
@@ -36,7 +34,7 @@ const normalizeDobToISO = (dobStr) => {
   return '';
 };
 
-// ✨ V26: ฟังก์ชันคำนวณอายุอัตโนมัติจากวันเกิด (รองรับทั้ง ค.ศ. และ พ.ศ. และแก้ค่าติดลบ)
+// คำนวณอายุอัตโนมัติจากวันเกิด
 const calculateMemberAge = (dobStr, fallbackAge) => {
   if (dobStr) {
     const iso = normalizeDobToISO(dobStr);
@@ -54,6 +52,31 @@ const calculateMemberAge = (dobStr, fallbackAge) => {
   return null;
 };
 
+// ✨ V27: ตรวจสอบว่าชื่อหน่วย/กลุ่มเซลล์เป็นชื่อจริง ไม่ใช่เครื่องหมายขีดหรือคำว่าง
+const isValidGroupName = (val) => {
+  if (!val) return false;
+  const s = String(val).trim();
+  if (!s) return false;
+  const invalidList = ['-', '--', '---', 'ไม่มี', 'ไม่ระบุ', 'null', 'undefined', 'n/a', 'none', 'ว่าง', '?'];
+  return !invalidList.includes(s.toLowerCase());
+};
+
+// ✨ V27: จัดมาตรฐานข้อความเพื่อไม่ให้นับซ้ำหากพิมพ์เล็ก-ใหญ่หรือเว้นวรรคต่างกัน
+const normalizeGroupKey = (val) => {
+  return String(val).trim().toLowerCase().replace(/\s+/g, '');
+};
+
+const countUniqueNormalized = (items, field) => {
+  const keys = new Set();
+  items.forEach(item => {
+    const val = item[field];
+    if (isValidGroupName(val)) {
+      keys.add(normalizeGroupKey(val));
+    }
+  });
+  return keys.size;
+};
+
 export default function App() {
   const [currentView, setCurrentView] = useState('login')
   const [userName, setUserName] = useState('')
@@ -65,6 +88,9 @@ export default function App() {
   const [listKwang, setListKwang] = useState([])
   const [members, setMembers] = useState([])
   const [memberLogs, setMemberLogs] = useState([])
+  
+  // ✨ V27: State สำหรับเปิดหน้าต่างตรวจสอบรายชื่อหน่วย / กลุ่มเซลล์
+  const [inspectModalType, setInspectModalType] = useState(null) // 'unit' | 'cell' | null
   
   const [attendanceData, setAttendanceData] = useState([])
   const [isAttModalOpen, setIsAttModalOpen] = useState(false)
@@ -153,8 +179,8 @@ export default function App() {
         if (error) throw error;
         setAllUsersList(data || []);
         
-        const uniqueZones = [...new Set(data.map(item => item.Zone?.trim()).filter(z => z))];
-        const uniqueKwang = [...new Set(data.map(item => item['แขวง']?.trim()).filter(k => k))];
+        const uniqueZones = [...new Set(data.map(item => item.Zone?.trim()).filter(isValidGroupName))];
+        const uniqueKwang = [...new Set(data.map(item => item['แขวง']?.trim()).filter(isValidGroupName))];
         setListZones(uniqueZones.sort());
         setListKwang(uniqueKwang.sort());
       } catch (error) { 
@@ -255,7 +281,7 @@ export default function App() {
         setIsReadOnly(latestPlan.status === 'submitted' || latestPlan.status === 'reviewed');
       }
     } else if (level === 'เขต') {
-      const kwangsInZone = [...new Set(memData.filter(m => m.Zone?.trim() === area).map(m => m['แขวง']?.trim()).filter(Boolean))];
+      const kwangsInZone = [...new Set(memData.filter(m => m.Zone?.trim() === area).map(m => m['แขวง']?.trim()).filter(isValidGroupName))];
       setMyPlans(data.filter(p => p.level === 'แขวง' && kwangsInZone.includes(p.area?.trim())));
     } else {
       setMyPlans(data);
@@ -278,7 +304,7 @@ export default function App() {
 
   const zoneKwangPlanStatus = useMemo(() => {
     if (planningLevel !== 'เขต' || !selectedArea) return [];
-    const kwangsInZone = [...new Set(members.filter(m => m.Zone?.trim() === selectedArea).map(m => m['แขวง']?.trim()).filter(Boolean))].sort();
+    const kwangsInZone = [...new Set(members.filter(m => m.Zone?.trim() === selectedArea).map(m => m['แขวง']?.trim()).filter(isValidGroupName))].sort();
     
     return kwangsInZone.map(kwangName => {
       const plan = myPlans.find(p => p.area?.trim() === kwangName);
@@ -303,7 +329,7 @@ export default function App() {
     }
 
     const memCount = filteredMembers.length;
-    const cellCount = [...new Set(filteredMembers.map(m => m.Cell?.trim()).filter(Boolean))].length;
+    const cellCount = countUniqueNormalized(filteredMembers, 'Cell');
     const leaderCount = filteredMembers.filter(m => cellLeaderRoles.includes(m['สถานะ']?.trim())).length;
     const mentorCount = filteredMembers.filter(m => mentorRoles.includes(m['สถานะ']?.trim())).length;
 
@@ -446,7 +472,6 @@ export default function App() {
     setIsModalOpen(true)
   }
 
-  // ✨ V26: แปลงวันเกิดให้อยู่ในรูปแบบ YYYY-MM-DD (ค.ศ.) ทันทีที่เปิดหน้าต่างแก้ไข
   const handleOpenEdit = (member) => {
     const fullName = member['ชื่อ-สกุล'] || '';
     const nameParts = fullName.trim().split(/\s+/);
@@ -474,7 +499,6 @@ export default function App() {
     setIsModalOpen(true)
   }
 
-  // ✨ V26: คำนวณอายุใหม่จากวันเกิดและอัปเดตลงคอลัมน์ 'อายุ' ในฐานข้อมูลทันที
   const handleSaveMember = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -694,6 +718,54 @@ export default function App() {
     }
   }
 
+  // ✨ V27: ฟังก์ชันเปลี่ยนชื่อหน่วยรวดเดียว (ช่วยรวมหน่วยที่สะกดผิดหรือซ้ำกัน)
+  const handleRenameUnit = async (oldUnitName, membersInUnit) => {
+    const newUnitName = window.prompt(
+      `✏️ แก้ไข/รวมชื่อหน่วย: "${oldUnitName}" (${membersInUnit.length} คน)\n\nพิมพ์ชื่อหน่วยที่ถูกต้อง (หรือพิมพ์ - หากไม่มีหน่วย):`,
+      oldUnitName === '(ไม่ได้ระบุ / ขีด -)' ? '' : oldUnitName
+    );
+    if (newUnitName === null || newUnitName.trim() === oldUnitName) return;
+
+    setIsSaving(true);
+    try {
+      const memberIds = membersInUnit.map(m => m.id);
+      const actorName = userName || 'แอดมิน / ผู้ใช้งานระบบ';
+      const targetUnit = isValidGroupName(newUnitName) ? newUnitName.trim() : null;
+      const detailMsg = `เปลี่ยนชื่อหน่วย: ${oldUnitName} ➔ ${targetUnit || 'ไม่ระบุ'}`;
+
+      let res = await supabase
+        .from('members')
+        .update({ 'หน่วย': targetUnit, updated_by: actorName, change_detail: detailMsg })
+        .in('id', memberIds);
+
+      if (res.error) {
+        res = await supabase
+          .from('members')
+          .update({ 'หน่วย': targetUnit })
+          .in('id', memberIds);
+      }
+      if (res.error) throw res.error;
+
+      await supabase.from('member_logs').insert([{
+        actor: actorName,
+        area: selectedArea || 'คริสตจักร',
+        action: 'แก้ไขชื่อหน่วย',
+        member_name: `ทั้งหน่วย (${memberIds.length} คน)`,
+        details: detailMsg
+      }]);
+
+      alert(`✅ อัปเดตชื่อหน่วยเป็น "${targetUnit || 'ไม่ระบุ'}" สำเร็จ (${memberIds.length} คน)!`);
+      await fetchMembers(planningLevel, selectedArea);
+      await fetchMemberLogs(planningLevel, selectedArea);
+      const { data: allUsers } = await supabase.from('members').select('*');
+      setAllUsersList(allUsers || []);
+    } catch (err) {
+      alert('❌ เปลี่ยนชื่อหน่วยไม่สำเร็จ: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   const localAuditLog = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem('member_audit_log') || '{}');
@@ -704,7 +776,7 @@ export default function App() {
 
   const dynamicKwangs = useMemo(() => {
     if (!memberForm.zone) return listKwang;
-    return [...new Set(allUsersList.filter(m => m.Zone?.trim() === memberForm.zone.trim()).map(m => m['แขวง']?.trim()).filter(Boolean))].sort();
+    return [...new Set(allUsersList.filter(m => m.Zone?.trim() === memberForm.zone.trim()).map(m => m['แขวง']?.trim()).filter(isValidGroupName))].sort();
   }, [allUsersList, listKwang, memberForm.zone]);
 
   const sortedUnits = useMemo(() => {
@@ -714,7 +786,7 @@ export default function App() {
     } else if (memberForm.zone) {
       filtered = filtered.filter(m => m.Zone?.trim() === memberForm.zone.trim());
     }
-    return [...new Set(filtered.map(m => m['หน่วย']?.trim()).filter(Boolean))].sort();
+    return [...new Set(filtered.map(m => m['หน่วย']?.trim()).filter(isValidGroupName))].sort();
   }, [allUsersList, memberForm.kwang, memberForm.zone]);
 
   const dynamicCells = useMemo(() => {
@@ -726,31 +798,94 @@ export default function App() {
     } else if (memberForm.zone) {
       filtered = filtered.filter(m => m.Zone?.trim() === memberForm.zone.trim());
     }
-    return [...new Set(filtered.map(m => m.Cell?.trim()).filter(Boolean))].sort();
+    return [...new Set(filtered.map(m => m.Cell?.trim()).filter(isValidGroupName))].sort();
   }, [allUsersList, memberForm.unit, memberForm.kwang, memberForm.zone]);
 
-  const uniqueZoneCount = [...new Set(members.map(m => m.Zone?.trim()).filter(z => z))].length
-  const uniqueKwangCount = [...new Set(members.map(m => m['แขวง']?.trim()).filter(k => k))].length
-  const uniqueUnitCount = [...new Set(members.map(m => m['หน่วย']?.trim()).filter(u => u))].length
-  const uniqueCellCount = [...new Set(members.map(m => m.Cell?.trim()).filter(c => c))].length
+  // ✨ V27: ใช้ระบบนับจำนวนแบบฉลาด (ตัดขีด '-' ออก และยุบรวมตัวพิมพ์เล็ก-ใหญ่/เว้นวรรค)
+  const uniqueZoneCount = countUniqueNormalized(members, 'Zone');
+  const uniqueKwangCount = countUniqueNormalized(members, 'แขวง');
+  const uniqueUnitCount = countUniqueNormalized(members, 'หน่วย');
+  const uniqueCellCount = countUniqueNormalized(members, 'Cell');
+
+  // ✨ V27: สรุปรายชื่อหน่วยและเซลล์ทั้งหมดสำหรับหน้าต่างตรวจสอบ (Inspector Modal)
+  const unitInspectionList = useMemo(() => {
+    const map = {};
+    members.forEach(m => {
+      const rawUnit = m['หน่วย']?.trim();
+      const label = isValidGroupName(rawUnit) ? rawUnit : '(ไม่ได้ระบุ / ขีด -)';
+      if (!map[label]) {
+        map[label] = {
+          name: label,
+          isValid: isValidGroupName(rawUnit),
+          normKey: isValidGroupName(rawUnit) ? normalizeGroupKey(rawUnit) : '',
+          zones: new Set(),
+          kwangs: new Set(),
+          members: []
+        };
+      }
+      if (m.Zone?.trim()) map[label].zones.add(m.Zone.trim());
+      if (m['แขวง']?.trim()) map[label].kwangs.add(m['แขวง'].trim());
+      map[label].members.push(m);
+    });
+    return Object.values(map).sort((a, b) => {
+      if (a.isValid !== b.isValid) return a.isValid ? -1 : 1;
+      const kwangA = [...a.kwangs][0] || '';
+      const kwangB = [...b.kwangs][0] || '';
+      if (kwangA !== kwangB) return kwangA.localeCompare(kwangB);
+      return a.name.localeCompare(b.name);
+    });
+  }, [members]);
+
+  const cellInspectionList = useMemo(() => {
+    const map = {};
+    members.forEach(m => {
+      const rawCell = m.Cell?.trim();
+      const label = isValidGroupName(rawCell) ? rawCell : 'ไม่มีระบุกลุ่มเซลล์';
+      if (!map[label]) {
+        map[label] = {
+          name: label,
+          isValid: isValidGroupName(rawCell),
+          zones: new Set(),
+          kwangs: new Set(),
+          units: new Set(),
+          members: []
+        };
+      }
+      if (m.Zone?.trim()) map[label].zones.add(m.Zone.trim());
+      if (m['แขวง']?.trim()) map[label].kwangs.add(m['แขวง'].trim());
+      if (isValidGroupName(m['หน่วย'])) map[label].units.add(m['หน่วย'].trim());
+      map[label].members.push(m);
+    });
+    return Object.values(map).sort((a, b) => {
+      if (a.isValid !== b.isValid) return a.isValid ? -1 : 1;
+      const kwangA = [...a.kwangs][0] || '';
+      const kwangB = [...b.kwangs][0] || '';
+      if (kwangA !== kwangB) return kwangA.localeCompare(kwangB);
+      return a.name.localeCompare(b.name);
+    });
+  }, [members]);
 
   const groupedMembers = members.reduce((acc, member) => {
-    const cellName = member.Cell?.trim() || 'ไม่มีระบุกลุ่มเซลล์';
+    const rawCell = member.Cell?.trim();
+    const cellName = isValidGroupName(rawCell) ? rawCell : 'ไม่มีระบุกลุ่มเซลล์';
     if (!acc[cellName]) acc[cellName] = [];
     acc[cellName].push(member); return acc;
   }, {});
   const sortedCells = Object.keys(groupedMembers).sort();
 
-  const churchSummary = [...new Set(members.map(m => m.Zone?.trim()).filter(Boolean))].sort().map(zone => {
+  const churchSummary = [...new Set(members.map(m => m.Zone?.trim()).filter(isValidGroupName))].sort().map(zone => {
     const zMembers = members.filter(m => m.Zone?.trim() === zone);
-    const kCount = [...new Set(zMembers.map(m => m['แขวง']?.trim()).filter(Boolean))].length;
-    const uCount = [...new Set(zMembers.map(m => m['หน่วย']?.trim()).filter(Boolean))].length;
-    const cCount = [...new Set(zMembers.map(m => m.Cell?.trim()).filter(Boolean))].length;
+    const kCount = countUniqueNormalized(zMembers, 'แขวง');
+    const uCount = countUniqueNormalized(zMembers, 'หน่วย');
+    const cCount = countUniqueNormalized(zMembers, 'Cell');
     return { zone, members: zMembers.length, kwangs: kCount, units: uCount, cells: cCount };
   });
 
+  // ✨ V27: ปรับคอลัมน์การ์ดสรุปด้านบน (คริสตจักร = 5 กล่อง, เขต = 4 กล่อง, แขวง = 3 กล่อง)
   const getGridColsClass = () => {
-    return planningLevel === 'แขวง' ? 'md:grid-cols-3 print:grid-cols-3' : 'md:grid-cols-4 print:grid-cols-4';
+    if (planningLevel === 'คริสตจักร') return 'md:grid-cols-5 print:grid-cols-5';
+    if (planningLevel === 'แขวง') return 'md:grid-cols-3 print:grid-cols-3';
+    return 'md:grid-cols-4 print:grid-cols-4';
   };
 
   if (currentView === 'login') {
@@ -918,33 +1053,38 @@ export default function App() {
             </div>
           </div>
 
-          <div className={`grid grid-cols-1 ${getGridColsClass()} gap-4 md:gap-6 print:gap-2 avoid-page-break`}>
-            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
+          {/* ✨ V27: แสดงการ์ดครบทุกมิติ (รวมกลุ่มเซลล์ในหน้าคริสตจักร) + คลิกเพื่อตรวจสอบรายชื่อหน่วย/เซลล์ได้ */}
+          <div className={`grid grid-cols-1 ${getGridColsClass()} gap-4 md:gap-4 print:gap-2 avoid-page-break`}>
+            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
               <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">สมาชิกทั้งหมด</h3>
               <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{members.length} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">คน</span></p>
             </div>
             {(planningLevel === 'เขต' || planningLevel === 'คริสตจักร') && (
-              <div className="bg-gradient-to-r from-violet-500 to-purple-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
+              <div className="bg-gradient-to-r from-violet-500 to-purple-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
                 <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">แขวงทั้งหมด</h3>
                 <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{uniqueKwangCount} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">แขวง</span></p>
               </div>
             )}
             {planningLevel === 'คริสตจักร' && (
-              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
+              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
                 <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">เขตทั้งหมด</h3>
                 <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{uniqueZoneCount} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">เขต</span></p>
               </div>
             )}
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
+            <div onClick={() => setInspectModalType('unit')} className="cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg relative group">
               <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">หน่วยทั้งหมด</h3>
               <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{uniqueUnitCount} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">หน่วย</span></p>
+              <span className="print:hidden inline-block mt-1 text-[11px] font-bold text-white/95 bg-black/15 px-2.5 py-0.5 rounded-full group-hover:bg-black/25 transition">
+                🔍 คลิกเช็ครายชื่อหน่วย
+              </span>
             </div>
-            {planningLevel !== 'คริสตจักร' && (
-              <div className="bg-gradient-to-r from-teal-400 to-emerald-400 p-6 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
-                <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">กลุ่มเซลล์ทั้งหมด</h3>
-                <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{uniqueCellCount} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">กลุ่ม</span></p>
-              </div>
-            )}
+            <div onClick={() => setInspectModalType('cell')} className="cursor-pointer bg-gradient-to-r from-teal-400 to-emerald-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg relative group">
+              <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">กลุ่มเซลล์ทั้งหมด</h3>
+              <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{uniqueCellCount} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">กลุ่ม</span></p>
+              <span className="print:hidden inline-block mt-1 text-[11px] font-bold text-white/95 bg-black/15 px-2.5 py-0.5 rounded-full group-hover:bg-black/25 transition">
+                🔍 คลิกเช็ครายชื่อเซลล์
+              </span>
+            </div>
           </div>
 
           {planningLevel === 'คริสตจักร' && (
@@ -1488,6 +1628,81 @@ export default function App() {
                    </div>
                 )}
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* ✨ V27: หน้าต่างตรวจสอบรายชื่อหน่วยและกลุ่มเซลล์ทั้งหมด พร้อมปุ่มแก้ไขชื่อรวดเดียว */}
+        {inspectModalType && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
+            <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 md:p-8 border border-white max-h-[88vh] flex flex-col">
+              <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-4">
+                <div>
+                  <h2 className="text-2xl font-black text-gray-800">
+                    {inspectModalType === 'unit' ? `🔍 ตรวจสอบรายชื่อหน่วยทั้งหมด (นับจริง ${uniqueUnitCount} หน่วย)` : `🔍 ตรวจสอบรายชื่อกลุ่มเซลล์ทั้งหมด (นับจริง ${uniqueCellCount} กลุ่ม)`}
+                  </h2>
+                  <p className="text-xs text-gray-500 font-bold mt-1">
+                    หากพบชื่อหน่วยหรือเซลล์ที่สะกดผิด/ซ้ำกัน สามารถกดปุ่ม "✏️ แก้ชื่อ" เพื่อรวมเข้าด้วยกันได้ทันที
+                  </p>
+                </div>
+                <button onClick={() => setInspectModalType(null)} className="text-gray-400 hover:text-gray-600 transition bg-gray-100 p-2.5 rounded-full font-bold">✕</button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 rounded-2xl border border-gray-100">
+                <table className="w-full text-left border-collapse whitespace-nowrap text-sm">
+                  <thead className="bg-gray-50 text-gray-600 sticky top-0">
+                    <tr>
+                      <th className="p-3 font-bold border-b">#</th>
+                      <th className="p-3 font-bold border-b">{inspectModalType === 'unit' ? 'ชื่อหน่วยในฐานข้อมูล' : 'ชื่อกลุ่มเซลล์ในฐานข้อมูล'}</th>
+                      <th className="p-3 font-bold border-b">สังกัดแขวง</th>
+                      <th className="p-3 font-bold border-b">สังกัดเขต</th>
+                      <th className="p-3 font-bold border-b text-center">จำนวนสมาชิก</th>
+                      <th className="p-3 font-bold border-b text-center">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(inspectModalType === 'unit' ? unitInspectionList : cellInspectionList).map((item, idx) => (
+                      <tr key={item.name} className={`border-b border-gray-50 hover:bg-orange-50/40 ${!item.isValid ? 'bg-red-50/40' : ''}`}>
+                        <td className="p-3 text-gray-400 font-bold">{item.isValid ? idx + 1 : '-'}</td>
+                        <td className="p-3 font-black text-gray-800">
+                          {item.name}
+                          {!item.isValid && (
+                            <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">
+                              ไม่ถูกนับเป็นหน่วยจริง
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-gray-600 font-bold">{[...item.kwangs].join(', ') || '-'}</td>
+                        <td className="p-3 text-gray-500">{[...item.zones].join(', ') || '-'}</td>
+                        <td className="p-3 text-center font-black text-orange-600">{item.members.length} คน</td>
+                        <td className="p-3 text-center">
+                          {inspectModalType === 'unit' ? (
+                            <button
+                              onClick={() => handleRenameUnit(item.name, item.members)}
+                              className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 rounded-xl transition"
+                            >
+                              ✏️ แก้ชื่อหน่วย
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleRenameCell(item.name, item.members)}
+                              className="text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-xl transition"
+                            >
+                              ✏️ แก้ชื่อเซลล์
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end pt-4 mt-4 border-t border-gray-100">
+                <button onClick={() => setInspectModalType(null)} className="px-6 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition">
+                  ปิดหน้าต่าง
+                </button>
+              </div>
             </div>
           </div>
         )}
