@@ -1,4 +1,4 @@
-// ✨ VERSION: ULTIMATE V27 (Show Cells in Church View + Smart Unit Count + Unit/Cell Inspector Modal)
+// ✨ VERSION: ULTIMATE V28 (Expandable Member List in Unit/Cell Inspector + Direct Edit)
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -52,7 +52,7 @@ const calculateMemberAge = (dobStr, fallbackAge) => {
   return null;
 };
 
-// ✨ V27: ตรวจสอบว่าชื่อหน่วย/กลุ่มเซลล์เป็นชื่อจริง ไม่ใช่เครื่องหมายขีดหรือคำว่าง
+// ตรวจสอบว่าชื่อหน่วย/กลุ่มเซลล์เป็นชื่อจริง ไม่ใช่เครื่องหมายขีดหรือคำว่าง
 const isValidGroupName = (val) => {
   if (!val) return false;
   const s = String(val).trim();
@@ -61,7 +61,7 @@ const isValidGroupName = (val) => {
   return !invalidList.includes(s.toLowerCase());
 };
 
-// ✨ V27: จัดมาตรฐานข้อความเพื่อไม่ให้นับซ้ำหากพิมพ์เล็ก-ใหญ่หรือเว้นวรรคต่างกัน
+// จัดมาตรฐานข้อความเพื่อไม่ให้นับซ้ำหากพิมพ์เล็ก-ใหญ่หรือเว้นวรรคต่างกัน
 const normalizeGroupKey = (val) => {
   return String(val).trim().toLowerCase().replace(/\s+/g, '');
 };
@@ -89,8 +89,9 @@ export default function App() {
   const [members, setMembers] = useState([])
   const [memberLogs, setMemberLogs] = useState([])
   
-  // ✨ V27: State สำหรับเปิดหน้าต่างตรวจสอบรายชื่อหน่วย / กลุ่มเซลล์
+  // ✨ V28: State สำหรับเปิดหน้าต่างตรวจสอบรายชื่อหน่วย / กลุ่มเซลล์ และกางดูรายชื่อคนข้างใน
   const [inspectModalType, setInspectModalType] = useState(null) // 'unit' | 'cell' | null
+  const [expandedInspectKey, setExpandedInspectKey] = useState(null)
   
   const [attendanceData, setAttendanceData] = useState([])
   const [isAttModalOpen, setIsAttModalOpen] = useState(false)
@@ -718,7 +719,6 @@ export default function App() {
     }
   }
 
-  // ✨ V27: ฟังก์ชันเปลี่ยนชื่อหน่วยรวดเดียว (ช่วยรวมหน่วยที่สะกดผิดหรือซ้ำกัน)
   const handleRenameUnit = async (oldUnitName, membersInUnit) => {
     const newUnitName = window.prompt(
       `✏️ แก้ไข/รวมชื่อหน่วย: "${oldUnitName}" (${membersInUnit.length} คน)\n\nพิมพ์ชื่อหน่วยที่ถูกต้อง (หรือพิมพ์ - หากไม่มีหน่วย):`,
@@ -801,13 +801,11 @@ export default function App() {
     return [...new Set(filtered.map(m => m.Cell?.trim()).filter(isValidGroupName))].sort();
   }, [allUsersList, memberForm.unit, memberForm.kwang, memberForm.zone]);
 
-  // ✨ V27: ใช้ระบบนับจำนวนแบบฉลาด (ตัดขีด '-' ออก และยุบรวมตัวพิมพ์เล็ก-ใหญ่/เว้นวรรค)
   const uniqueZoneCount = countUniqueNormalized(members, 'Zone');
   const uniqueKwangCount = countUniqueNormalized(members, 'แขวง');
   const uniqueUnitCount = countUniqueNormalized(members, 'หน่วย');
   const uniqueCellCount = countUniqueNormalized(members, 'Cell');
 
-  // ✨ V27: สรุปรายชื่อหน่วยและเซลล์ทั้งหมดสำหรับหน้าต่างตรวจสอบ (Inspector Modal)
   const unitInspectionList = useMemo(() => {
     const map = {};
     members.forEach(m => {
@@ -881,7 +879,6 @@ export default function App() {
     return { zone, members: zMembers.length, kwangs: kCount, units: uCount, cells: cCount };
   });
 
-  // ✨ V27: ปรับคอลัมน์การ์ดสรุปด้านบน (คริสตจักร = 5 กล่อง, เขต = 4 กล่อง, แขวง = 3 กล่อง)
   const getGridColsClass = () => {
     if (planningLevel === 'คริสตจักร') return 'md:grid-cols-5 print:grid-cols-5';
     if (planningLevel === 'แขวง') return 'md:grid-cols-3 print:grid-cols-3';
@@ -1053,7 +1050,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* ✨ V27: แสดงการ์ดครบทุกมิติ (รวมกลุ่มเซลล์ในหน้าคริสตจักร) + คลิกเพื่อตรวจสอบรายชื่อหน่วย/เซลล์ได้ */}
           <div className={`grid grid-cols-1 ${getGridColsClass()} gap-4 md:gap-4 print:gap-2 avoid-page-break`}>
             <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg">
               <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">สมาชิกทั้งหมด</h3>
@@ -1071,14 +1067,14 @@ export default function App() {
                 <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{uniqueZoneCount} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">เขต</span></p>
               </div>
             )}
-            <div onClick={() => setInspectModalType('unit')} className="cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg relative group">
+            <div onClick={() => { setInspectModalType('unit'); setExpandedInspectKey(null); }} className="cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg relative group">
               <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">หน่วยทั้งหมด</h3>
               <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{uniqueUnitCount} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">หน่วย</span></p>
               <span className="print:hidden inline-block mt-1 text-[11px] font-bold text-white/95 bg-black/15 px-2.5 py-0.5 rounded-full group-hover:bg-black/25 transition">
                 🔍 คลิกเช็ครายชื่อหน่วย
               </span>
             </div>
-            <div onClick={() => setInspectModalType('cell')} className="cursor-pointer bg-gradient-to-r from-teal-400 to-emerald-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg relative group">
+            <div onClick={() => { setInspectModalType('cell'); setExpandedInspectKey(null); }} className="cursor-pointer bg-gradient-to-r from-teal-400 to-emerald-500 p-5 rounded-3xl text-center shadow-md transform hover:-translate-y-1 transition-all print:shadow-none print:border print:border-gray-300 print:from-white print:to-white print:p-2 print:rounded-lg relative group">
               <h3 className="font-bold text-white mb-1 print:text-gray-700 print:text-sm">กลุ่มเซลล์ทั้งหมด</h3>
               <p className="text-4xl font-black text-white print:text-gray-900 print:text-xl">{uniqueCellCount} <span className="text-lg font-normal opacity-90 print:text-gray-600 print:text-xs">กลุ่ม</span></p>
               <span className="print:hidden inline-block mt-1 text-[11px] font-bold text-white/95 bg-black/15 px-2.5 py-0.5 rounded-full group-hover:bg-black/25 transition">
@@ -1632,74 +1628,145 @@ export default function App() {
           </div>
         )}
 
-        {/* ✨ V27: หน้าต่างตรวจสอบรายชื่อหน่วยและกลุ่มเซลล์ทั้งหมด พร้อมปุ่มแก้ไขชื่อรวดเดียว */}
+        {/* ✨ V28: หน้าต่างตรวจสอบรายชื่อหน่วยและกลุ่มเซลล์ + คลิกกางดูรายชื่อคนข้างในและกดแก้ไขรายคนได้ */}
         {inspectModalType && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto print:hidden">
-            <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-6 md:p-8 border border-white max-h-[88vh] flex flex-col">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-40 overflow-y-auto print:hidden">
+            <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl p-6 md:p-8 border border-white max-h-[90vh] flex flex-col">
               <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-4">
                 <div>
                   <h2 className="text-2xl font-black text-gray-800">
                     {inspectModalType === 'unit' ? `🔍 ตรวจสอบรายชื่อหน่วยทั้งหมด (นับจริง ${uniqueUnitCount} หน่วย)` : `🔍 ตรวจสอบรายชื่อกลุ่มเซลล์ทั้งหมด (นับจริง ${uniqueCellCount} กลุ่ม)`}
                   </h2>
                   <p className="text-xs text-gray-500 font-bold mt-1">
-                    หากพบชื่อหน่วยหรือเซลล์ที่สะกดผิด/ซ้ำกัน สามารถกดปุ่ม "✏️ แก้ชื่อ" เพื่อรวมเข้าด้วยกันได้ทันที
+                    คลิกที่ปุ่ม <span className="text-orange-600">"👥 ดูรายชื่อ"</span> เพื่อเปิดดูว่ามีใครอยู่ในหน่วย/เซลล์นั้นบ้าง หรือกด <span className="text-orange-600">"✏️ แก้ชื่อ"</span> เพื่อเปลี่ยนชื่อทั้งกลุ่ม
                   </p>
                 </div>
-                <button onClick={() => setInspectModalType(null)} className="text-gray-400 hover:text-gray-600 transition bg-gray-100 p-2.5 rounded-full font-bold">✕</button>
+                <button onClick={() => { setInspectModalType(null); setExpandedInspectKey(null); }} className="text-gray-400 hover:text-gray-600 transition bg-gray-100 p-2.5 rounded-full font-bold">✕</button>
               </div>
 
               <div className="overflow-y-auto flex-1 rounded-2xl border border-gray-100">
                 <table className="w-full text-left border-collapse whitespace-nowrap text-sm">
-                  <thead className="bg-gray-50 text-gray-600 sticky top-0">
+                  <thead className="bg-gray-50 text-gray-600 sticky top-0 z-10">
                     <tr>
                       <th className="p-3 font-bold border-b">#</th>
                       <th className="p-3 font-bold border-b">{inspectModalType === 'unit' ? 'ชื่อหน่วยในฐานข้อมูล' : 'ชื่อกลุ่มเซลล์ในฐานข้อมูล'}</th>
                       <th className="p-3 font-bold border-b">สังกัดแขวง</th>
                       <th className="p-3 font-bold border-b">สังกัดเขต</th>
-                      <th className="p-3 font-bold border-b text-center">จำนวนสมาชิก</th>
-                      <th className="p-3 font-bold border-b text-center">จัดการ</th>
+                      <th className="p-3 font-bold border-b text-center">รายชื่อสมาชิก</th>
+                      <th className="p-3 font-bold border-b text-center">จัดการทั้งกลุ่ม</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(inspectModalType === 'unit' ? unitInspectionList : cellInspectionList).map((item, idx) => (
-                      <tr key={item.name} className={`border-b border-gray-50 hover:bg-orange-50/40 ${!item.isValid ? 'bg-red-50/40' : ''}`}>
-                        <td className="p-3 text-gray-400 font-bold">{item.isValid ? idx + 1 : '-'}</td>
-                        <td className="p-3 font-black text-gray-800">
-                          {item.name}
-                          {!item.isValid && (
-                            <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">
-                              ไม่ถูกนับเป็นหน่วยจริง
-                            </span>
+                    {(inspectModalType === 'unit' ? unitInspectionList : cellInspectionList).map((item, idx) => {
+                      const isExpanded = expandedInspectKey === item.name;
+                      const hasMultipleKwangs = item.kwangs.size > 1;
+                      return (
+                        <Fragment key={item.name}>
+                          <tr className={`border-b border-gray-50 hover:bg-orange-50/40 ${!item.isValid ? 'bg-red-50/40' : ''}`}>
+                            <td className="p-3 text-gray-400 font-bold">{item.isValid ? idx + 1 : '-'}</td>
+                            <td className="p-3 font-black text-gray-800">
+                              {item.name}
+                              {!item.isValid && (
+                                <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">
+                                  ไม่ถูกนับเป็นหน่วยจริง
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 font-bold">
+                              <span className={hasMultipleKwangs ? 'text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200' : 'text-gray-600'}>
+                                {[...item.kwangs].join(', ') || '-'}
+                              </span>
+                              {hasMultipleKwangs && (
+                                <span className="ml-1.5 text-[10px] text-rose-500 font-bold">⚠️ ปนกัน {item.kwangs.size} แขวง</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-gray-500">{[...item.zones].join(', ') || '-'}</td>
+                            <td className="p-3 text-center">
+                              <button
+                                onClick={() => setExpandedInspectKey(isExpanded ? null : item.name)}
+                                className={`text-xs font-black px-3 py-1.5 rounded-xl border transition ${isExpanded ? 'bg-orange-600 text-white border-orange-600' : 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100'}`}
+                              >
+                                👥 {isExpanded ? 'ซ่อนรายชื่อ' : `ดูรายชื่อ (${item.members.length} คน)`}
+                              </button>
+                            </td>
+                            <td className="p-3 text-center">
+                              {inspectModalType === 'unit' ? (
+                                <button
+                                  onClick={() => handleRenameUnit(item.name, item.members)}
+                                  className="text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition"
+                                >
+                                  ✏️ แก้ชื่อหน่วย
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleRenameCell(item.name, item.members)}
+                                  className="text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-xl transition"
+                                >
+                                  ✏️ แก้ชื่อเซลล์
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="bg-amber-50/40 border-b border-orange-100">
+                              <td colSpan="6" className="p-4">
+                                <div className="bg-white rounded-2xl border border-orange-200 overflow-hidden shadow-sm">
+                                  <div className="bg-orange-50 px-4 py-2 font-black text-orange-800 text-xs flex justify-between items-center">
+                                    <span>รายชื่อสมาชิกใน "{item.name}" ทั้งหมด {item.members.length} คน</span>
+                                    <span className="text-[11px] font-bold text-gray-500">สามารถกดปุ่ม "แก้ไข/ย้าย" เพื่อเปลี่ยนแขวง หน่วย หรือเซลล์รายคนได้ทันที</span>
+                                  </div>
+                                  <table className="w-full text-left border-collapse text-xs">
+                                    <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
+                                      <tr>
+                                        <th className="p-2.5 font-bold">ชื่อ-สกุล (ชื่อเล่น)</th>
+                                        <th className="p-2.5 font-bold">สถานะ</th>
+                                        <th className="p-2.5 font-bold">เขต</th>
+                                        <th className="p-2.5 font-bold">แขวง</th>
+                                        <th className="p-2.5 font-bold">หน่วย</th>
+                                        <th className="p-2.5 font-bold">กลุ่มเซลล์</th>
+                                        <th className="p-2.5 font-bold text-center">จัดการ</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {item.members.map((m, mIdx) => (
+                                        <tr key={m.id || mIdx} className="border-b border-gray-50 hover:bg-slate-50">
+                                          <td className="p-2.5 font-bold text-gray-800">
+                                            {m.title ? `${m.title} ` : ''}{m['ชื่อ-สกุล']} {m['ชื่อเล่น'] ? <span className="text-gray-400">({m['ชื่อเล่น']})</span> : ''}
+                                          </td>
+                                          <td className="p-2.5 text-gray-600 font-semibold">{m['สถานะ'] || '-'}</td>
+                                          <td className="p-2.5 text-gray-500">{m.Zone || '-'}</td>
+                                          <td className="p-2.5">
+                                            <span className={`px-2 py-0.5 rounded-md font-bold ${hasMultipleKwangs ? 'bg-rose-100 text-rose-700' : 'text-gray-700'}`}>
+                                              {m['แขวง'] || '-'}
+                                            </span>
+                                          </td>
+                                          <td className="p-2.5 font-bold text-orange-600">{m['หน่วย'] || '-'}</td>
+                                          <td className="p-2.5 text-teal-700 font-semibold">{m.Cell || '-'}</td>
+                                          <td className="p-2.5 text-center">
+                                            <button
+                                              onClick={() => handleOpenEdit(m)}
+                                              className="bg-sky-50 text-sky-600 hover:bg-sky-100 font-bold px-2.5 py-1 rounded-lg transition"
+                                            >
+                                              แก้ไข/ย้าย
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                        <td className="p-3 text-gray-600 font-bold">{[...item.kwangs].join(', ') || '-'}</td>
-                        <td className="p-3 text-gray-500">{[...item.zones].join(', ') || '-'}</td>
-                        <td className="p-3 text-center font-black text-orange-600">{item.members.length} คน</td>
-                        <td className="p-3 text-center">
-                          {inspectModalType === 'unit' ? (
-                            <button
-                              onClick={() => handleRenameUnit(item.name, item.members)}
-                              className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 rounded-xl transition"
-                            >
-                              ✏️ แก้ชื่อหน่วย
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleRenameCell(item.name, item.members)}
-                              className="text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-xl transition"
-                            >
-                              ✏️ แก้ชื่อเซลล์
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               <div className="flex justify-end pt-4 mt-4 border-t border-gray-100">
-                <button onClick={() => setInspectModalType(null)} className="px-6 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition">
+                <button onClick={() => { setInspectModalType(null); setExpandedInspectKey(null); }} className="px-6 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition">
                   ปิดหน้าต่าง
                 </button>
               </div>
