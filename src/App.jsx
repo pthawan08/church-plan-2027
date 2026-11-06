@@ -1,5 +1,5 @@
-// ✨ VERSION: ULTIMATE V28 (Expandable Member List in Unit/Cell Inspector + Direct Edit)
-import { useState, useEffect, useMemo } from 'react'
+// ✨ VERSION: ULTIMATE V29 (Fix White Screen Fragment Import + Expandable Unit/Cell Inspector)
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { supabase } from './supabase'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
 import { QRCodeSVG } from 'qrcode.react'
@@ -89,8 +89,7 @@ export default function App() {
   const [members, setMembers] = useState([])
   const [memberLogs, setMemberLogs] = useState([])
   
-  // ✨ V28: State สำหรับเปิดหน้าต่างตรวจสอบรายชื่อหน่วย / กลุ่มเซลล์ และกางดูรายชื่อคนข้างใน
-  const [inspectModalType, setInspectModalType] = useState(null) // 'unit' | 'cell' | null
+  const [inspectModalType, setInspectModalType] = useState(null)
   const [expandedInspectKey, setExpandedInspectKey] = useState(null)
   
   const [attendanceData, setAttendanceData] = useState([])
@@ -1628,7 +1627,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ✨ V28: หน้าต่างตรวจสอบรายชื่อหน่วยและกลุ่มเซลล์ + คลิกกางดูรายชื่อคนข้างในและกดแก้ไขรายคนได้ */}
+        {/* หน้าต่างตรวจสอบรายชื่อหน่วยและกลุ่มเซลล์ + คลิกกางดูรายชื่อคนข้างในและกดแก้ไขรายคนได้ */}
         {inspectModalType && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-40 overflow-y-auto print:hidden">
             <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl p-6 md:p-8 border border-white max-h-[90vh] flex flex-col">
